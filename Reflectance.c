@@ -56,6 +56,8 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "msp432.h"
 #include "..\inc\Clock.h"
 
+const int16_t W[] = {334, 238, 142, 48, -48, -142, -238, -334};
+
 // ------------Reflectance_Init------------
 // Initialize the GPIO pins associated with the QTR-8RC
 // reflectance sensor.  Infrared illumination LEDs are
@@ -98,19 +100,39 @@ void Reflectance_Init(void){
 uint8_t Reflectance_Read(uint32_t time){
     uint8_t result;
 
-    P5->OUT |= 0x08;      //turn on 4 even IR LEDs
-    P9->OUT |= 0x04;      //turn on 4 odd IR LEDs
+    //6.4.2 Single Sensor version
+    /*
+    P5->OUT |= 0x08;
+    P7->DIR |= 0x01;
+    P7->OUT |= 0x01;
+    Clock_Delay1us(10);
+    P7->DIR &= ~0x01;
+    for(uint16_t i = 0; i < 10000; i++)
+    {
+        if(P7->IN&0x01)
+        {
+            P4->OUT |= 0x01;
+        }
+        else
+        {
+            P4->OUT &= ~0x01;
+        }
+    }
+    P5->OUT &= ~0x08;
+    result = 0;
+    */
 
-    P7->DIR = 0xFF;       //make P7 outputs
-    P7->OUT = 0xFF;       //set P7 high
-    Clock_Delay1us(10);   //wait 10 us
-
-    P7->DIR &= ~0xFF;     //make P7 inputs
-    Clock_Delay1us(time); //wait amount specified by time arg
-    result = P7->IN;      //read in inputs from P7 (8-bit)
-
-    P5->OUT &= ~0x08;     //turn off 4 even IR LEDs
-    P9->OUT &= ~0x04;     //turn off 4 odd IR LEDs
+    //6.4.3 Permanent All-Sensor Version
+    P5->OUT |= 0x08;
+    P9->OUT |= 0x04;
+    P7->DIR = 0xFF;
+    P7->OUT = 0xFF;
+    Clock_Delay1us(10);
+    P7->DIR = 0x00;
+    Clock_Delay1us(time);
+    result = P7->IN;
+    P5->OUT &= ~0x08;
+    P9->OUT &= ~0x04;
 
     return result;
 }
@@ -132,42 +154,29 @@ uint8_t Reflectance_Read(uint32_t time){
 // 0,0          neither        lost
 // Assumes: Reflectance_Init() has been called
 uint8_t Reflectance_Center(uint32_t time){
-    // write this as part of Lab 6
-  return 0; // replace this line
+    return ((Reflectance_Read(time)&0x18) >> 3); //as the top code is already very parallel, this code should run basically just as fast as it would rewriting it, so might as well use what is there already
 }
 
 
 // Perform sensor integration
 // Input: data is 8-bit result from line sensor
 // Output: position in 0.1mm relative to center of line
-int32_t Reflectance_Position(uint8_t data){
-    uint8_t count = 0;
-    int32_t sum = 0;
-    int32_t Weight[] = {332, 237, 142, 47, -47, -142, -237, -332};
-    uint8_t Mask[] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
-    int32_t position;
-
-    int i;
-    for(i = 0; i < 8; i++) {
-        if (data&Mask[i]) {
-            count++;
-            sum = sum+Weight[i];
-        }
+int16_t Reflectance_Position(uint8_t data){
+    if(!data)
+    {
+        return 0x4000; //if we are completely lost, this stops a divide by zero error and flags second MSB while MSB is zero
     }
-    position = sum/count;
-
-    return position; // replace this line
+    int16_t top = 0;
+    uint8_t bottom = 0;
+    for(uint8_t i = 0; i < 8; i++)
+    {
+        top += W[i]*((data >> i)&0x01);
+        bottom += ((data >> i)&0x01);
+    }
+ return top/bottom; // replace this line
 }
 
 
-// ------------Reflectance_Start------------
-// Begin the process of reading the eight sensors
-// Turn on the 8 IR LEDs
-// Pulse the 8 sensors high for 10 us
-// Make the sensor pins input
-// Input: none
-// Output: none
-// Assumes: Reflectance_Init() has been called
 void Reflectance_Start(void){
 
     P5->OUT |= 0x08;      //turn on 4 even IR LEDs
@@ -180,15 +189,6 @@ void Reflectance_Start(void){
     P7->DIR &= ~0xFF;     //make P7 inputs
 }
 
-
-// ------------Reflectance_End------------
-// Finish reading the eight sensors
-// Read sensors
-// Turn off the 8 IR LEDs
-// Input: none
-// Output: sensor readings
-// Assumes: Reflectance_Init() has been called
-// Assumes: Reflectance_Start() was called 1 ms ago
 uint8_t Reflectance_End(void){
     // write this as part of Lab 10
     uint8_t result = P7->IN;      //read in inputs from P7 (8-bit)

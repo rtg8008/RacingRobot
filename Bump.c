@@ -53,12 +53,12 @@ policies, either expressed or implied, of the FreeBSD Project.
 // Activate interface pullup
 // pins 7,6,5,3,2,0
 void Bump_Init(void){
-    //P4 pins 0,2,3,5,6,7 as inputs 11101101
+    // write this as part of Lab 10
     P4->SEL0 &= ~0xED;
-    P4->SEL1 &= ~0xED;         //make GPIO
-    P4->DIR &= ~0xED;          //make inputs
-    P4->REN |= 0xED;           //enable pull-up resistors
-    P4->OUT |= 0xED;           //positive logic
+    P4->SEL1 &= ~0xED; //set as GPIO
+    P4->DIR &= ~0xED;  //set as input
+    P4->REN |= 0xED;   //enable pull-up/pull-down network
+    P4->OUT |= 0xED;   //make pull direction pull-up
 }
 // Read current state of 6 switches
 // Returns a 6-bit positive logic result (0 to 63)
@@ -70,15 +70,13 @@ void Bump_Init(void){
 // bit 0 Bump0
 uint8_t Bump_Read(void){
     // write this as part of Lab 10
-    uint8_t first1 = (P4->IN & 0x01);
-    uint8_t second2 = (P4->IN & 0x0C)>>1;
-    uint8_t last3 = (P4->IN & 0xE0)>>2;
-    uint8_t bumpers = first1 | second2 | last3;     //0x3F when no sensors are pressed
-
-    return bumpers;
+    uint8_t out = 0x00;
+    out |= ((P4->IN)&0xE0)>>2;
+    out |= ((P4->IN)&0x0C)>>1;
+    out |= (P4->IN)&0x01;
+    return out^0x3F;
 }
 
-// Initialize bump sensors as edge triggered interrupts
 void Bump_Edge_Init(void) {
 
     P4->SEL0 &= ~0xED;
@@ -89,7 +87,7 @@ void Bump_Edge_Init(void) {
     P4->IES |= 0xED;            //falling edge event
     P4->IFG &= ~0xED;           //clear interrupt flags
     P4->IE |= 0xED;             //arm interrupt enabled
-    NVIC->IP[9] = (NVIC->IP[9]&0xFF00FFFF) | 0x00400000; //set priority to 2
+    NVIC->IP[9] = (NVIC->IP[9]&0xFF00FFFF) | 0x00200000; //set priority to 1
     NVIC->ISER[1] = 0x00000040; //enable
 }
 
