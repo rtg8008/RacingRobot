@@ -54,6 +54,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/FlashProgram.h"
 
 #define DEBUG_ARRAY_LEN 100
+#define MAX_DUTY 7500
 
 uint32_t *debugArr;
 uint16_t debugIdx;
@@ -62,6 +63,7 @@ uint8_t light;
 uint8_t bumpers;
 int16_t position;
 uint8_t bump_trigger;
+uint8_t state;
 
 void main(void){
     Clock_Init48MHz();
@@ -71,18 +73,26 @@ void main(void){
     Debug_FlashInit();
     TimerA1_Init();
     Bump_Edge_Init();
+    state = 1;
     EnableInterrupts();
     while(1){
-        if(bump_trigger)
+        switch(state)
         {
-            Motor_Forward(7500,7500);
+            case 0:
+                Motor_Backward(MAX_DUTY/2,MAX_DUTY/2);
+                break;
+            case 1: //off to the left; positive position
+                Motor_Forward(MAX_DUTY,(334-position)*(MAX_DUTY/334));
+                break;
+            case 2: //off to right; negative position
+                Motor_Forward((position+334)*(MAX_DUTY/334),MAX_DUTY);
+                break;
+            default:
+                Motor_Stop();
+                break;
         }
-        else
-        {
-            Motor_Stop();
-        }
-        bump_trigger = 0;
-        SysTick_Wait10ms(100);
+        SysTick_Wait(10000);
+        state = getNextState();
     }
 
 }
@@ -208,10 +218,25 @@ void PORT4_IRQHandler(void) {
     bumpers = Bump_Read();
     bump_trigger = 1;
     Motor_Stop();
-
+    Motor_Backward(MAX_DUTY/2,MAX_DUTY/2);
+    SysTick_Wait(500*48000);
+    Motor_Stop();
 }
 
 uint16_t map(int16_t x) {
     x = abs(x);
     return 89*x;
+}
+
+uint8_t getNextState()
+{
+    if((position > 9000)||(light == 0xFF))
+    {
+        return 0; //lost
+    }
+    if(position >= 0)
+    {
+        return 1; //off to the left; reduce speed of right motor (position = 334 should completely turn off right motor whereas position 0 should run it same spped as left
+    }
+    return 2; //off to the right; reduce speed of left motor (position = -334 should completely turn off left motor)
 }
