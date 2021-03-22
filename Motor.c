@@ -144,8 +144,8 @@ void Motor_Forward(uint16_t leftDuty, uint16_t rightDuty){
 void Motor_Right(uint16_t leftDuty, uint16_t rightDuty){ 
   // write this as part of Lab 13
     P3->OUT |= 0xC0;
-    P5->OUT &= ~0x20;
-    P5->OUT |= 0x10;
+    P5->OUT |= 0x20;
+    P5->OUT &= ~0x10;
 
     TIMER_A0->CCR[3] = rightDuty;   // ccr1 duty cycle is duty1/period right duty
     TIMER_A0->CCR[4] = leftDuty; // ccr2 duty cycle is duty2/period left duty
@@ -162,8 +162,9 @@ void Motor_Right(uint16_t leftDuty, uint16_t rightDuty){
 void Motor_Left(uint16_t leftDuty, uint16_t rightDuty){ 
   // write this as part of Lab 13
     P3->OUT |= 0xC0;
-    P5->OUT |= 0x20;
-    P5->OUT &= ~0x10;
+    P5->OUT &= ~0x20;
+    P5->OUT |= 0x10;
+
     TIMER_A0->CCR[3] = rightDuty;   // ccr1 duty cycle is duty1/period right duty
     TIMER_A0->CCR[4] = leftDuty; // ccr2 duty cycle is duty2/period left duty
 

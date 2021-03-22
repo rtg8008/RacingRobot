@@ -54,7 +54,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/FlashProgram.h"
 
 #define DEBUG_ARRAY_LEN 100
-#define MAX_DUTY 7500
+#define MAX_DUTY 7500      //7500
 
 uint32_t *debugArr;
 uint16_t debugIdx;
@@ -62,8 +62,10 @@ uint32_t flashAddr;
 uint8_t light;
 uint8_t bumpers;
 int16_t position;
+int16_t last = 1;       //initialize last to be different from position
 uint8_t bump_trigger;
 uint8_t state;
+
 
 void main(void){
     Clock_Init48MHz();
@@ -76,23 +78,42 @@ void main(void){
     state = 1;
     EnableInterrupts();
     while(1){
+        if( last == position) {
+            continue;
+        }
+
+        last = position;
+        state = getNextState();
         switch(state)
         {
             case 0:
                 Motor_Backward(MAX_DUTY/2,MAX_DUTY/2);
                 break;
-            case 1: //off to the left; positive position
-                Motor_Forward(MAX_DUTY,(334-position)*(MAX_DUTY/334));
+            case 1: //toward center of line
+                Motor_Forward(MAX_DUTY, MAX_DUTY);
                 break;
-            case 2: //off to right; negative position
-                Motor_Forward((position+334)*(MAX_DUTY/334),MAX_DUTY);
+            case 2: //a little off to the left; positive position
+                Motor_Forward(MAX_DUTY, MAX_DUTY*4/5);
+                break;
+            case 3: //medium off to the left
+                Motor_Forward(MAX_DUTY, MAX_DUTY/2);
+                break;
+            case 4: //far off to the left
+                Motor_Right(MAX_DUTY, MAX_DUTY*3/4);
+                break;
+            case 5: //a little off to the right; negative position
+                Motor_Forward(MAX_DUTY*4/5, MAX_DUTY);
+                break;
+            case 6: //medium off the right
+                Motor_Forward(MAX_DUTY/2, MAX_DUTY);
+                break;
+            case 7: //far off to the right
+                Motor_Left(MAX_DUTY/2, MAX_DUTY);
                 break;
             default:
                 Motor_Stop();
                 break;
         }
-        SysTick_Wait(10000);
-        state = getNextState();
     }
 
 }
@@ -199,12 +220,12 @@ void TA1_N_IRQHandler(void)
             break;
         case 4: //CCR2; Light Sensor 1
             TIMER_A1->CCTL[2] &= ~0x0001; //Clear Interrupt Flag
-            TIMER_A1->CCR[2] = (TIMER_A1->CCR[2] + 3750) % 0xFFFF; //Set next occurrence to happen in 10ms
+            TIMER_A1->CCR[2] = (TIMER_A1->CCR[2] + 1875) % 0xFFFF; //Set next occurrence to happen in 10ms
             Reflectance_Start();
             break;
         case 6: //CCR3; Light Sensor 2
             TIMER_A1->CCTL[3] &= ~0x0001; //Clear Interrupt Flag
-            TIMER_A1->CCR[3] = (TIMER_A1->CCR[3] + 3750) % 0xFFFF; //Set next occurrence to happen in 10ms
+            TIMER_A1->CCR[3] = (TIMER_A1->CCR[3] + 1875) % 0xFFFF; //Set next occurrence to happen in 10ms
             light = Reflectance_End();
             position = Reflectance_Position(light);
             break;
@@ -230,13 +251,31 @@ uint16_t map(int16_t x) {
 
 uint8_t getNextState()
 {
-    if((position > 9000)||(light == 0xFF))
-    {
-        return 0; //lost
+    uint8_t state;
+
+    if((position > 9000)||(light == 0xFF)) {
+        state = 0;           //lost
     }
-    if(position >= 0)
-    {
-        return 1; //off to the left; reduce speed of right motor (position = 334 should completely turn off right motor whereas position 0 should run it same spped as left
+    else if( position >= -10 && position <= 10) {
+        state = 1;           //toward center of line
     }
-    return 2; //off to the right; reduce speed of left motor (position = -334 should completely turn off left motor)
+    else if( position > 10 && position < 200) {
+        state = 2;           //a little to the left
+    }
+    else if( position >= 200 && position <= 250) {
+        state = 3;           //medium off to the left
+    }
+    else if( position > 250) {
+        state = 4;           //far off to the left
+    }
+    else if( position < -10 && position > -200) {
+        state = 5;            //a little to the right
+    }
+    else if( position <= -200 && position >= -250) {
+        state = 6;            //medium off to the right
+    }
+    else if( position < -250) {
+        state = 7;            //far off to the right
+    }
+    return state;
 }
