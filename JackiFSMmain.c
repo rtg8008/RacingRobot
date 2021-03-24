@@ -54,7 +54,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/FlashProgram.h"
 
 #define DEBUG_ARRAY_LEN 100
-#define MAX_DUTY 7500      //7500
+#define MAX_DUTY 5000      //7500
 
 uint32_t *debugArr;
 uint16_t debugIdx;
@@ -87,7 +87,15 @@ void main(void){
         switch(state)
         {
             case 0:
-                Motor_Backward(MAX_DUTY/2,MAX_DUTY/2);
+                SysTick_Wait(48000*500);
+                state = getNextState();
+
+                if( state == 0) {
+                    Motor_Backward(MAX_DUTY, MAX_DUTY);
+                    DisableInterrupts();
+                    SysTick_Wait(48000);
+                    EnableInterrupts();
+                }
                 break;
             case 1: //toward center of line
                 Motor_Forward(MAX_DUTY, MAX_DUTY);
@@ -96,7 +104,7 @@ void main(void){
                 Motor_Forward(MAX_DUTY, MAX_DUTY*4/5);
                 break;
             case 3: //medium off to the left
-                Motor_Forward(MAX_DUTY, MAX_DUTY/2);
+                Motor_Forward(MAX_DUTY, MAX_DUTY*3/4);
                 break;
             case 4: //far off to the left
                 Motor_Right(MAX_DUTY, MAX_DUTY*3/4);
@@ -105,10 +113,10 @@ void main(void){
                 Motor_Forward(MAX_DUTY*4/5, MAX_DUTY);
                 break;
             case 6: //medium off the right
-                Motor_Forward(MAX_DUTY/2, MAX_DUTY);
+                Motor_Forward(MAX_DUTY*3/4, MAX_DUTY);
                 break;
             case 7: //far off to the right
-                Motor_Left(MAX_DUTY/2, MAX_DUTY);
+                Motor_Left(MAX_DUTY*3/4, MAX_DUTY);
                 break;
             default:
                 Motor_Stop();
@@ -253,7 +261,7 @@ uint8_t getNextState()
 {
     uint8_t state;
 
-    if((position > 9000)||(light == 0xFF)) {
+    if( (position > 9000)||(light == 0xFF) ) {
         state = 0;           //lost
     }
     else if( position >= -10 && position <= 10) {
