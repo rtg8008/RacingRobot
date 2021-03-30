@@ -54,7 +54,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/FlashProgram.h"
 
 #define DEBUG_ARRAY_LEN 100
-#define MAX_DUTY 5000      //7500
+#define MAX_DUTY 5000     //7500
 
 uint32_t *debugArr;
 uint16_t debugIdx;
@@ -93,7 +93,7 @@ void main(void){
                 if( state == 0) {
                     Motor_Backward(MAX_DUTY, MAX_DUTY);
                     DisableInterrupts();
-                    SysTick_Wait(48000);
+                    SysTick_Wait(48000*2);
                     EnableInterrupts();
                 }
                 break;
@@ -101,22 +101,22 @@ void main(void){
                 Motor_Forward(MAX_DUTY, MAX_DUTY);
                 break;
             case 2: //a little off to the left; positive position
-                Motor_Forward(MAX_DUTY, MAX_DUTY*4/5);
+                Motor_Forward(MAX_DUTY, MAX_DUTY*7/8);
                 break;
             case 3: //medium off to the left
                 Motor_Forward(MAX_DUTY, MAX_DUTY*3/4);
                 break;
             case 4: //far off to the left
-                Motor_Right(MAX_DUTY, MAX_DUTY*3/4);
+                Motor_Right(MAX_DUTY, MAX_DUTY*5/6);
                 break;
             case 5: //a little off to the right; negative position
-                Motor_Forward(MAX_DUTY*4/5, MAX_DUTY);
+                Motor_Forward(MAX_DUTY*7/8, MAX_DUTY);
                 break;
             case 6: //medium off the right
                 Motor_Forward(MAX_DUTY*3/4, MAX_DUTY);
                 break;
             case 7: //far off to the right
-                Motor_Left(MAX_DUTY*3/4, MAX_DUTY);
+                Motor_Left(MAX_DUTY*5/6, MAX_DUTY);
                 break;
             default:
                 Motor_Stop();
@@ -228,12 +228,12 @@ void TA1_N_IRQHandler(void)
             break;
         case 4: //CCR2; Light Sensor 1
             TIMER_A1->CCTL[2] &= ~0x0001; //Clear Interrupt Flag
-            TIMER_A1->CCR[2] = (TIMER_A1->CCR[2] + 1875) % 0xFFFF; //Set next occurrence to happen in 10ms
+            TIMER_A1->CCR[2] = (TIMER_A1->CCR[2] + 1875) % 0xFFFF; //Set next occurrence to happen in 5ms
             Reflectance_Start();
             break;
         case 6: //CCR3; Light Sensor 2
             TIMER_A1->CCTL[3] &= ~0x0001; //Clear Interrupt Flag
-            TIMER_A1->CCR[3] = (TIMER_A1->CCR[3] + 1875) % 0xFFFF; //Set next occurrence to happen in 10ms
+            TIMER_A1->CCR[3] = (TIMER_A1->CCR[3] + 1875) % 0xFFFF; //Set next occurrence to happen in 5ms
             light = Reflectance_End();
             position = Reflectance_Position(light);
             break;
@@ -249,7 +249,7 @@ void PORT4_IRQHandler(void) {
     Motor_Stop();
     Motor_Backward(MAX_DUTY/2,MAX_DUTY/2);
     SysTick_Wait(500*48000);
-    Motor_Stop();
+    Motor_Forward(MAX_DUTY/2, MAX_DUTY/2);
 }
 
 uint16_t map(int16_t x) {
