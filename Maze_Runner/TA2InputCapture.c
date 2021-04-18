@@ -142,7 +142,7 @@ void TA2_N_IRQHandler(void) {
           break;
 
       case 0x06: //CCR3
-          TIMER_A2->CCTL[3] &= ~0x0001;    // acknowledge capture/compare interrupt 1
+          TIMER_A2->CCTL[3] &= ~0x0001;    // acknowledge capture/compare interrupt 3
           (*CaptureTaskA2)(TIMER_A2->CCR[3], SENSOR_2); // execute user task
           break;
 

@@ -94,7 +94,7 @@ uint16_t Duty;
 int32_t* DutyBuffer;
 uint16_t Time;
 uint32_t flashAddr;
-int LPF_N = 64;     //number of samples in low pass filters
+int LPF_N = 16;     //number of samples in low pass filters
 
 uint16_t Period0;               // 1.67us units
 int32_t Speed0;
@@ -120,11 +120,11 @@ void PeriodMeasure0(uint16_t time){
   Done0 = 1;
 
   if( first_read0 == 0) {
-      LPF_Init(Speed0, LPF_N);
+      LPF_Init4(Speed0, LPF_N);
       first_read0 = 1;
   }
   else {
-      Speed0 = LPF_Calc(Speed0);
+      Speed0 = LPF_Calc4(Speed0);
   }
 }
 
@@ -151,11 +151,11 @@ void PeriodMeasure1(uint16_t time){
   Done1 = 1;
 
   if( first_read1 == 0) {
-      LPF_Init2(Speed0, LPF_N);
+      LPF_Init5(Speed1, LPF_N);
       first_read1 = 1;
   }
   else {
-      Speed1 = LPF_Calc2(Speed1);
+      Speed1 = LPF_Calc5(Speed1);
   }
 }
 

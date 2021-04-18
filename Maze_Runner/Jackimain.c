@@ -59,6 +59,8 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/EUSCIA0.h"
 #include "../inc/Launchpad.h"
 
+//Period0, Speed0, etc. is the right side. Period1, Speed1, etc. the left.
+
 int bump_trigger = 0;
 
 void Pause(void){

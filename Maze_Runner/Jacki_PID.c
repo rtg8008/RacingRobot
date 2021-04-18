@@ -75,35 +75,35 @@ policies, either expressed or implied, of the FreeBSD Project.
 int32_t deltaT = 10;     //time between tach readings (ms)
 
 int32_t Xstar0 = 100;      //desired speed (rpm)
-int32_t Ki0 = 2500;          //integral controller coefficient
+int32_t Ki0 = 250;          //integral controller coefficient
 int32_t UR, Error0, Xprime0;
 int32_t Xstar1 = 100;
-int32_t Ki1 = 2500;
+int32_t Ki1 = 250;
 int32_t UL, Error1, Xprime1;
-int i = 0;
+int ii = 0;
 void Wheel_Controller(void) { //CONTROLS SPEED OF BOTH WHEELS
     Xprime0 = getSpeed0();       //measured speed
     Error0 = Xstar0 - Xprime0;
-    UR += (Ki0*Error0)/(deltaT*1000);      //integral controller
+    UR += (Ki0*Error0)/(deltaT*100);      //integral controller
 
     Xprime1 = getSpeed1();
     Error1 = Xstar1 - Xprime1;
-    UL += (Ki1*Error1)/(deltaT*1000);
+    UL += (Ki1*Error1)/(deltaT*100);
 
-    if( i % 100 == 0) {
+    if( ii % 100 == 0) {
         EUSCIA0_OutString("UR = ");
         EUSCIA0_OutSDec(UR);
         EUSCIA0_OutString("\nUL = ");
         EUSCIA0_OutSDec(UL);
         EUSCIA0_OutString("\n");
     }
-    i++;
+    ii++;
     Motor_Forward(UL, UR);
 }
 
-int32_t PWM_Nominal = 5000;
+#define RPMNOMINAL 100
 int32_t Desired_Position = 0;   // (distance from left wall) - (distance from right wall)
-int32_t Ki = 2500;
+int32_t Ki = 4500;
 int32_t U, Error, Xprime, left_distance, right_distance;
 int j = 0;
 void Position_Controller(void) {
@@ -111,15 +111,23 @@ void Position_Controller(void) {
     right_distance = getRightDistance();
     Xprime = left_distance - right_distance;
     Error = Desired_Position - Xprime;
-    U = (Ki*Error)/(deltaT*1000);
+    U = (Ki*Error)/(deltaT*100);
     if ( j % 10 == 0) {
         EUSCIA0_OutString("U = ");
         EUSCIA0_OutSDec(U);
         EUSCIA0_OutString("\n");
     }
     j++;
-    //Xstar0 = PWM_Nominal - U;
-    //Xstar1 = PWM_Nominal + U;
+    if(U>=100)
+    {
+        U = 100;
+    }
+    if(U<=-100)
+    {
+        U = -100;
+    }
+    Xstar0 = RPMNOMINAL - U;
+    Xstar1 = RPMNOMINAL + U;
 }
 
 

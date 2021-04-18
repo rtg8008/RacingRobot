@@ -54,6 +54,7 @@ void ta3dummy2(void){}             // dummy function
 void (*CaptureTask0)(uint16_t time) = ta3dummy; // user function
 void (*CaptureTask1)(uint16_t time) = ta3dummy; // user function
 void (*CaptureTask2)(void) = ta3dummy; // user function
+void (*CaptureTask3)(void) = ta3dummy; // user function
 
 
 //------------TimerA3Capture_Init01------------
@@ -93,10 +94,11 @@ void TimerA3Capture_Init01(void(*task0)(uint16_t time), void(*task1)(uint16_t ti
     TIMER_A3->CTL |= 0x0024; //Reset and Start Timer in Continuous Mode
 }
 
-void TimerA3Capture_Init(void(*task0)(uint16_t time), void(*task1)(uint16_t time), void(*task2)(void)){
+void TimerA3Capture_Init(void(*task0)(uint16_t time), void(*task1)(uint16_t time), void(*task2)(void), void(*task3)(void)){
     CaptureTask0 = task0;
     CaptureTask1 = task1;
     CaptureTask2 = task2;
+    CaptureTask3 = task3;
 
     P10->SEL0 |= 0x30;
     P10->SEL1 &= ~0x30; //Select Timer Functionality for Tachometer Pins
@@ -115,10 +117,10 @@ void TimerA3Capture_Init(void(*task0)(uint16_t time), void(*task1)(uint16_t time
     TIMER_A3->CCTL[1] = 0x4910; //Capture Mode, Rising Edge, looks at CCIS1A (Pin 10.5), Enable Interrupts
 
     TIMER_A3->CCTL[2] = 0x0010; //Enable Interrupt; Compare Mode
-    TIMER_A3->CCR[2] = 600; // First Occurance at 10ms
+    TIMER_A3->CCR[2] = 6000; // First Occurance at 10ms
 
     TIMER_A3->CCTL[3] = 0x0010; //Enable Interrupt; Compare Mode
-    TIMER_A3->CCR[3] = 600; // First Occurance at 10ms
+    TIMER_A3->CCR[3] = 6000; // First Occurance at 10ms
 
     NVIC->IP[3] = (NVIC->IP[3] & ~0xE0E00000)|0x40400000; //All Timer A3 Submodules are Priority 2
     NVIC->ISER[0] |= 0x0000C000; //Enable all Timer A3 interrupts
@@ -144,13 +146,14 @@ void TA3_N_IRQHandler(void)
 
         case 4: //CCR2
             TIMER_A3->CCTL[2] &= ~0x0001; //Clear Interrupt Flag and overflow
-            TIMER_A3->CCR[2] = (TIMER_A3->CCR[2] + 600) % 0xFFFF; //Set next occurrence to happen in 10ms
+            TIMER_A3->CCR[2] = (TIMER_A3->CCR[2] + 6000) % 0xFFFF; //Set next occurrence to happen in 10ms
             (*CaptureTask2)();
             break;
 
         case 6: //CCR3
             TIMER_A3->CCTL[3] &= ~0x0001; //Clear Interrupt Flag and overflow
-            TIMER_A3->CCR[3] = (TIMER_A3->CCR[3] + 600) % 0xFFFF; //Set next occurrence to happen in 10ms
+            TIMER_A3->CCR[3] = (TIMER_A3->CCR[3] + 6000) % 0xFFFF; //Set next occurrence to happen in 10ms
+            (*CaptureTask3)();
             break;
 
         default:

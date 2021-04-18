@@ -84,4 +84,6 @@ void TimerA3Capture_Init02(void(*task0)(uint16_t time), void(*task2)(uint16_t ti
  */
 void TimerA3Capture_Init01(void(*task0)(uint16_t time), void(*task1)(uint16_t time));
 
+void TimerA3Capture_Init(void(*task0)(uint16_t time), void(*task1)(uint16_t time), void(*task2)(void), void(*task3)(void));
+
 #endif /* TA3INPUTCAPTURE_H_ */
