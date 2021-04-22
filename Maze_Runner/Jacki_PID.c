@@ -72,7 +72,10 @@ policies, either expressed or implied, of the FreeBSD Project.
 // Integral control, Line follower
 
 
-#define RPMNOMINAL 50
+#define RPMNOMINAL 75
+#define RED       0x01
+#define GREEN     0x02
+#define BLUE      0x04
 
 
 int32_t deltaT = 10;     //time between tach readings (ms)
@@ -83,8 +86,13 @@ int32_t UR, Error0, Xprime0;
 int32_t Xstar1 = 100;
 int32_t Ki1 = 50;
 int32_t UL, Error1, Xprime1;
-int j = 0;
+int j = 0, turn = 0;  //buffer is value for manually controlled turns
 void Wheel_Controller(void) { //CONTROLS SPEED OF BOTH WHEELS
+
+    if( turn != 0) {
+        return;
+    }
+
     Xprime0 = getSpeed0();       //measured speed
     Error0 = Xstar0 - Xprime0;
     UR += (Ki0*Error0*deltaT)/(1000);      //integral controller
@@ -92,93 +100,187 @@ void Wheel_Controller(void) { //CONTROLS SPEED OF BOTH WHEELS
     Xprime1 = getSpeed1();
     Error1 = Xstar1 - Xprime1;
     UL += (Ki1*Error1*deltaT)/(1000);
-
-//    if( j % 100 == 0) {
-//        EUSCIA0_OutString("UR = ");
-//        EUSCIA0_OutSDec(UR);
-//        EUSCIA0_OutString("\nUL = ");
-//        EUSCIA0_OutSDec(UL);
-//        EUSCIA0_OutString("\n");
-//    }
     j++;
+
     Motor_Forward(UL, UR);
 }
 
 
 int32_t Desired_Position = 0;   // (distance from left wall) - (distance from right wall) in cm
-int32_t Kp = 75;
-int32_t Ki = 10;
-int32_t Up, Ui, U, Error, Xprime, left_distance, right_distance, front_distance;
+int32_t Kp = 20;
+int32_t Ki = 5;
+int32_t Up, Ui, U, Error, Xprime, left_distance, right_distance, front_distance, initial_edge, current_edge;
 int k = 0;
+int turn_threshold = 350;
+
 void Position_Controller(void) {
+
+    if( turn != 0) {
+        switch(turn)
+        {
+            case 1: //turning right
+                current_edge = getEdges1();
+                turn_threshold = 350;
+                P2->OUT = (P2->OUT&0xF8)|(BLUE+RED);
+                break;
+            case 2: //turning left
+                current_edge = getEdges0();
+                turn_threshold = 350;
+                P2->OUT = (P2->OUT&0xF8)|BLUE;
+                break;
+            case 3: //turning 180
+                current_edge = getEdges1();
+                turn_threshold = 350;
+                P2->OUT = (P2->OUT&0xF8)|GREEN;
+                break;
+            case 4: //going straight
+                current_edge = getEdges1();
+                turn_threshold = 92;
+                P2->OUT = (P2->OUT&0xF8)|RED;
+            case 5:
+                current_edge = getEdges0();
+                turn_threshold = 92;
+                P2->OUT = (P2->OUT&0xF8)|RED;
+        }
+        if( current_edge - initial_edge >= turn_threshold) {
+            if( turn == 1) {   //move forward after a left or right turn
+                initial_edge = current_edge;
+                turn = 4;
+                Motor_Forward(5000,5000);
+            }
+            else if( turn == 2) {
+                initial_edge = current_edge;
+                turn = 5;
+                Motor_Forward(5000,5000);
+            }
+            else if( turn == 3 || turn == 4 || turn == 5) {
+                turn = 0;
+
+                Motor_Stop();
+            }
+        }
+        return;
+    }
+
     //get current filtered measurements from ultrasonics
     left_distance = getLeftDistance();
     right_distance = getRightDistance();
     front_distance = getFrontDistance();
 
-    if( front_distance < 20) {  //check if there's anything in front of us
+
+    if( right_distance > 30) {
+        turn = 1;
+        initial_edge = getEdges1();
+        Motor_Forward(5000,0);
+    }
+    else if( front_distance < 15) {  //check if there's anything in front of us
         if ( left_distance > 30) { //only left path is open
-            //turn left
-            Error = left_distance - right_distance; //redefine distance so that we turn left (done by setting error to the distance from center of wall)
+            turn = 2;
+            initial_edge = getEdges0();
+            Motor_Forward(0,5000);
         }
         else {      //at a dead end
-            //turn right until we see a right path
-            Xstar0 = 0;
-            Xstar1 = 75;
-            Ui = 0;  //reset the integral controller
-            return;
+            turn = 3;
+            initial_edge = getEdges1();
+            Motor_Left(5000,5000);   //turn 180 degrees in place
         }
     }
-    else {  //right path open or straight away
-        Error = right_distance - 10;    //hug the right wall at distance of 10cm
+    else {  //straight away
+        Error = right_distance - 15;    //hug the right wall at distance of 20cm
+
+        Up = (Kp*Error*deltaT)/1000;    //proportional
+        Ui += (Ki*Error*deltaT)/1000;   //integral
+        U = Up + Ui;    //PI controller
+
+    //        if ( k % 100 == 0) {
+    //            EUSCIA0_OutString("U = ");
+    //            EUSCIA0_OutSDec(U);
+    //            EUSCIA0_OutString("\n");
+    //        }
+        k++;
+        if(U>=75) {
+            U = 75;
+        }
+        if(U<=-75) {
+            U = -75;
+        }
+        Xstar0 = RPMNOMINAL - U;    //set values for right and left wheel in rpm
+        Xstar1 = RPMNOMINAL + U;
     }
+}
 
-    Up = (Kp*Error*deltaT)/1000;    //proportional
-    Ui += (Ki*Error*deltaT)/1000;   //integral
-    U = Up + Ui;    //PI controller
-
-//        if ( k % 100 == 0) {
-//            EUSCIA0_OutString("U = ");
-//            EUSCIA0_OutSDec(U);
-//            EUSCIA0_OutString("\n");
+//void old_Position_Controller2(void) {
+//    //get current filtered measurements from ultrasonics
+//    left_distance = getLeftDistance();
+//    right_distance = getRightDistance();
+//    front_distance = getFrontDistance();
+//
+//
+//    if( front_distance < 20) {  //check if there's anything in front of us
+//        if( right_distance > 30) {
+//            Error = right_distance - 10;    //hug the right wall at distance of 10cm
 //        }
-    k++;
-    if(U>=50) {
-        U = 50;
-    }
-    if(U<=-50) {
-        U = -50;
-    }
-    Xstar0 = RPMNOMINAL - U;
-    Xstar1 = RPMNOMINAL + U;
-}
-
-
-
-void old_Position_Controller(void) {
-    //get current filtered measurements from ultrasonics
-    left_distance = getLeftDistance();
-    right_distance = getRightDistance();
-
-    Xprime = left_distance - right_distance;
-    Error = Desired_Position - Xprime;
-
-    Up = (Kp*Error*deltaT)/1000;    //proportional
-    Ui += (Ki*Error*deltaT)/1000;   //integral
-    U = Up + Ui;    //PI controller
-
-//    if ( k % 100 == 0) {
-//        EUSCIA0_OutString("U = ");
-//        EUSCIA0_OutSDec(U);
-//        EUSCIA0_OutString("\n");
+//        else if ( left_distance > 30) { //only left path is open
+//            Error = left_distance - right_distance; //redefine distance so that we turn left (done by setting error to the distance from center of wall)
+//        }
+//        else {      //at a dead end
+//            //turn right until we see a right path
+//            Xstar0 = 0;
+//            Xstar1 = 75;
+//            Ui = 0;  //reset the integral controller
+//            return;
+//        }
 //    }
-    k++;
-    if(U>=50) {
-        U = 50;
-    }
-    if(U<=-50) {
-        U = -50;
-    }
-    Xstar0 = RPMNOMINAL - U;
-    Xstar1 = RPMNOMINAL + U;
-}
+//    else {  //right path open or straight away
+//        Error = right_distance - 10;    //hug the right wall at distance of 10cm
+//    }
+//
+//    Up = (Kp*Error*deltaT)/1000;    //proportional
+//    Ui += (Ki*Error*deltaT)/1000;   //integral
+//    U = Up + Ui;    //PI controller
+//
+////        if ( k % 100 == 0) {
+////            EUSCIA0_OutString("U = ");
+////            EUSCIA0_OutSDec(U);
+////            EUSCIA0_OutString("\n");
+////        }
+//    k++;
+//    if(U>=50) {
+//        U = 50;
+//    }
+//    if(U<=-50) {
+//        U = -50;
+//    }
+//    Xstar0 = RPMNOMINAL - U;    //set values for right and left wheel in rpm
+//    Xstar1 = RPMNOMINAL + U;
+//}
+//
+//
+//
+//void old_Position_Controller(void) {
+//    //get current filtered measurements from ultrasonics
+//    left_distance = getLeftDistance();
+//    right_distance = getRightDistance();
+//
+//    Xprime = left_distance - right_distance;
+//    Error = Desired_Position - Xprime;
+//
+//    Up = (Kp*Error*deltaT)/1000;    //proportional
+//    Ui += (Ki*Error*deltaT)/1000;   //integral
+//    U = Up + Ui;    //PI controller
+//
+////    if ( k % 100 == 0) {
+////        EUSCIA0_OutString("U = ");
+////        EUSCIA0_OutSDec(U);
+////        EUSCIA0_OutString("\n");
+////    }
+//    k++;
+//    if(U>=50) {
+//        U = 50;
+//    }
+//    if(U<=-50) {
+//        U = -50;
+//    }
+//    Xstar0 = RPMNOMINAL - U;
+//    Xstar1 = RPMNOMINAL + U;
+//}

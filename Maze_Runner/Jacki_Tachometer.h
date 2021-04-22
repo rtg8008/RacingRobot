@@ -16,6 +16,10 @@ int32_t getSpeed0(void);
 
 int32_t getSpeed1(void);
 
+int32_t getEdges0(void);
+
+int32_t getEdges1(void);
+
 void Collect(void);
 
 void Debug_FlashInit(void);

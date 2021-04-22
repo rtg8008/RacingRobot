@@ -85,7 +85,6 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/Tachometer.h"
 #include "../inc/TA3InputCapture.h"
 #include "../inc/TExaS.h"
-#include "../inc/FlashProgram.h"
 #include "../inc/Bump.h"
 #include "../inc/EUSCIA0.h"
 #include "../inc/LPF.h"
@@ -99,7 +98,6 @@ int LPF_N = 16;     //number of samples in low pass filters
 uint16_t Period0;               // 1.67us units
 int32_t Speed0;
 uint16_t First0;                // Timer A3 first edge, P10.4
-uint8_t Done0;                  // set each rising
 int32_t Edges0;                 // Simple counter to count number of edges
 int32_t* SpeedArr0;
 int first_read0 = 0;
@@ -117,7 +115,6 @@ void PeriodMeasure0(uint16_t time){
       Speed0 = -100000/Period0;
   }
   First0 = time;               // setup for next
-  Done0 = 1;
 
   if( first_read0 == 0) {
       LPF_Init4(Speed0, LPF_N);
@@ -131,8 +128,7 @@ void PeriodMeasure0(uint16_t time){
 uint16_t Period1;               // 1.67us units
 int32_t Speed1;
 uint16_t First1;                // Timer A3 first edge, P10.5
-uint8_t Done1;                  // set each rising
-int32_t Edges1;                 //
+int32_t Edges1;                 // Simple counter to count number of edges
 int32_t* SpeedArr1;
 int first_read1 = 0;
 void PeriodMeasure1(uint16_t time){
@@ -148,7 +144,6 @@ void PeriodMeasure1(uint16_t time){
         Speed1 = -100000/Period1;
     }
   First1 = time;               // setup for next
-  Done1 = 1;
 
   if( first_read1 == 0) {
       LPF_Init5(Speed1, LPF_N);
@@ -167,79 +162,18 @@ int32_t getSpeed1(void) {       //Left Motor
     return Speed1;
 }
 
-void Collect(void){
-  if(Done0==0) Period0 = 65534; // stopped
-  if(Done1==0) Period1 = 65534; // stopped
-  Done0 = Done1 = 0;   // set on subsequent
-  if(Time==200){       // 2 sec
-    Duty = 7500;
-    Motor_Forward(Duty, Duty);  // 50%
-  }
-  if(Time==400){       // 4 sec
-    Duty = 11250;
-    Motor_Forward(Duty, Duty);// 75%
-  }
-  if(Time==600){       // 6 sec
-    Duty = 14998;
-    Motor_Forward(Duty, Duty);  // 100%
-  }
-  if(Time==800){       // 8 sec
-    Duty = 3750;
-    Motor_Forward(Duty, Duty);  // 25%
-  }
-  if(Time<2000){        // 20 sec
-      if(Period1 == 65535)
-      {
-          SpeedArr1[Time%10] = 0;
-      }
-      else
-      {
-          SpeedArr1[Time%10] = Speed1;
-      }
-      if(Period0 == 65535)
-      {
-          SpeedArr0[Time%10] = 0;
-      }
-      else
-      {
-          SpeedArr0[Time%10] = Speed0;
-      }
-      DutyBuffer[Time%10] = Duty;
-      Time++;
-      if(!(Time%10)&&(Time>0))
-      {
-          //EUSCIA0_OutSDec(SpeedArr0[0]);
-          //EUSCIA0_OutString("\n");
-          uint32_t count = Flash_WriteArray(SpeedArr0,flashAddr,10);
-          Flash_WriteArray(SpeedArr1,flashAddr+10000,10);
-          Flash_WriteArray(DutyBuffer,flashAddr+20000,10);
-          flashAddr += 4*count;
-      }
-  }
-  if((Time>=2000)||Bump_Read()){
-    Duty = 0;
-    Motor_Stop();      // 0%
-    TIMER_A1->CTL &= ~0x0030; //Stop the clock
-  }
+int32_t getEdges0(void) {       //right motor
+    return Edges0;
 }
 
-
-void Debug_FlashInit(void){
-    flashAddr = 0x00020000;
-    while(flashAddr < 0x0003FFFF)
-    {
-        Flash_Erase(flashAddr);
-        flashAddr += 4096;
-    }
-    flashAddr = 0x00020000;
+int32_t getEdges1(void) {       //left motor
+    return Edges1;
 }
+
 
 void Tach_Init(void){ //main1(void){
   First0 = First1 = 0; // first will be wrong
-  Done0 = Done1 = 0;   // set on subsequent
-  Time = 0; Duty = 3750;
   SpeedArr0 = (int32_t*)malloc(20*sizeof(int32_t));
   SpeedArr1 = (int32_t*)malloc(20*sizeof(int32_t));
-  DutyBuffer = (uint16_t*)malloc(20*sizeof(uint16_t));
 }
 
