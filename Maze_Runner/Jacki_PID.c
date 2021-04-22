@@ -71,63 +71,112 @@ policies, either expressed or implied, of the FreeBSD Project.
 // Incremental speed control
 // Integral control, Line follower
 
-#define PWMNOMINAL 5000
+
+#define RPMNOMINAL 50
+
+
 int32_t deltaT = 10;     //time between tach readings (ms)
 
 int32_t Xstar0 = 100;      //desired speed (rpm)
-int32_t Ki0 = 250;          //integral controller coefficient
+int32_t Ki0 = 50;          //integral controller coefficient
 int32_t UR, Error0, Xprime0;
 int32_t Xstar1 = 100;
-int32_t Ki1 = 250;
+int32_t Ki1 = 50;
 int32_t UL, Error1, Xprime1;
-int ii = 0;
+int j = 0;
 void Wheel_Controller(void) { //CONTROLS SPEED OF BOTH WHEELS
     Xprime0 = getSpeed0();       //measured speed
     Error0 = Xstar0 - Xprime0;
-    UR += (Ki0*Error0)/(deltaT*100);      //integral controller
+    UR += (Ki0*Error0*deltaT)/(1000);      //integral controller
 
     Xprime1 = getSpeed1();
     Error1 = Xstar1 - Xprime1;
-    UL += (Ki1*Error1)/(deltaT*100);
+    UL += (Ki1*Error1*deltaT)/(1000);
 
-    if( ii % 100 == 0) {
-        EUSCIA0_OutString("UR = ");
-        EUSCIA0_OutSDec(UR);
-        EUSCIA0_OutString("\nUL = ");
-        EUSCIA0_OutSDec(UL);
-        EUSCIA0_OutString("\n");
-    }
-    ii++;
+//    if( j % 100 == 0) {
+//        EUSCIA0_OutString("UR = ");
+//        EUSCIA0_OutSDec(UR);
+//        EUSCIA0_OutString("\nUL = ");
+//        EUSCIA0_OutSDec(UL);
+//        EUSCIA0_OutString("\n");
+//    }
+    j++;
     Motor_Forward(UL, UR);
 }
 
-#define RPMNOMINAL 100
-int32_t Desired_Position = 0;   // (distance from left wall) - (distance from right wall)
-int32_t Ki = 4500;
-int32_t U, Error, Xprime, left_distance, right_distance;
-int j = 0;
+
+int32_t Desired_Position = 0;   // (distance from left wall) - (distance from right wall) in cm
+int32_t Kp = 75;
+int32_t Ki = 10;
+int32_t Up, Ui, U, Error, Xprime, left_distance, right_distance, front_distance;
+int k = 0;
 void Position_Controller(void) {
+    //get current filtered measurements from ultrasonics
     left_distance = getLeftDistance();
     right_distance = getRightDistance();
+    front_distance = getFrontDistance();
+
+    Error = right_distance - 10;    //hug the right wall at distance of 10cm
+
+    if( front_distance < 20) {  //check if there's anything in front of us
+        if ( left_distance > 30) { //only left path is open
+            //turn left
+            Error = left_distance - right_distance; //redefine distance so that we turn left (done by setting error to the distance from center of wall)
+        }
+        else {      //at a dead end
+            //turn right until we see a right path
+            Xstar0 = 0;
+            Xstar1 = 75;
+            Ui = 0;  //reset the integral controller
+        }
+    }
+    else {  //right path open or straight away
+
+        Up = (Kp*Error*deltaT)/1000;    //proportional
+        Ui += (Ki*Error*deltaT)/1000;   //integral
+        U = Up + Ui;    //PI controller
+
+//        if ( k % 100 == 0) {
+//            EUSCIA0_OutString("U = ");
+//            EUSCIA0_OutSDec(U);
+//            EUSCIA0_OutString("\n");
+//        }
+        k++;
+        if(U>=50) {
+            U = 50;
+        }
+        if(U<=-50) {
+            U = -50;
+        }
+        Xstar0 = RPMNOMINAL - U;
+        Xstar1 = RPMNOMINAL + U;
+    }
+}
+
+void old_Position_Controller(void) {
+    //get current filtered measurements from ultrasonics
+    left_distance = getLeftDistance();
+    right_distance = getRightDistance();
+
     Xprime = left_distance - right_distance;
     Error = Desired_Position - Xprime;
-    U = (Ki*Error)/(deltaT*100);
-    if ( j % 10 == 0) {
-        EUSCIA0_OutString("U = ");
-        EUSCIA0_OutSDec(U);
-        EUSCIA0_OutString("\n");
+
+    Up = (Kp*Error*deltaT)/1000;    //proportional
+    Ui += (Ki*Error*deltaT)/1000;   //integral
+    U = Up + Ui;    //PI controller
+
+//    if ( k % 100 == 0) {
+//        EUSCIA0_OutString("U = ");
+//        EUSCIA0_OutSDec(U);
+//        EUSCIA0_OutString("\n");
+//    }
+    k++;
+    if(U>=50) {
+        U = 50;
     }
-    j++;
-    if(U>=100)
-    {
-        U = 100;
-    }
-    if(U<=-100)
-    {
-        U = -100;
+    if(U<=-50) {
+        U = -50;
     }
     Xstar0 = RPMNOMINAL - U;
     Xstar1 = RPMNOMINAL + U;
 }
-
-

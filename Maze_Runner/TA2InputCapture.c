@@ -97,9 +97,9 @@ void TimerA2Capture_Init(void(*task)(uint16_t time, int sensor)){
   // bit1=X,           capture overflow status
   // bit0=0,           clear capture/compare interrupt pending
 
-  TIMER_A2->CCTL[1] = 0xC910;
-  TIMER_A2->CCTL[2] = 0xC910;
-  TIMER_A2->CCTL[3] = 0xC910;
+  TIMER_A2->CCTL[1] = 0xC910;   //P5.6
+  TIMER_A2->CCTL[2] = 0xC910;   //P5.7
+  TIMER_A2->CCTL[3] = 0xC910;   //P6.6
 
   TIMER_A2->CCTL[0] = 0x0010; //Enable Interrupt; Compare Mode
   TIMER_A2->CCR[0] = 300; // First Occurance at 100us
@@ -124,7 +124,7 @@ void TimerA2Capture_Init(void(*task)(uint16_t time, int sensor)){
 void TA2_0_IRQHandler(void) {
     TIMER_A2->CCTL[0] &= ~0x0001; //Clear Interrupt Flag and overflow
     TIMER_A2->CCR[0] = (TIMER_A2->CCR[0] + 30000) % 0xFFFF; //Set next occurrence to happen in 10ms
-    P6->OUT |= 0x20;
+    P3->OUT |= 0x20;
 }
 
 void TA2_N_IRQHandler(void) {
@@ -142,14 +142,14 @@ void TA2_N_IRQHandler(void) {
           break;
 
       case 0x06: //CCR3
-          TIMER_A2->CCTL[3] &= ~0x0001;    // acknowledge capture/compare interrupt 3
+          TIMER_A2->CCTL[3] &= ~0x0001;    // acknowledge capture/compare interrupt 1
           (*CaptureTaskA2)(TIMER_A2->CCR[3], SENSOR_2); // execute user task
           break;
 
       case 0x08: //CCR4
           TIMER_A2->CCTL[4] &= ~0x0001; //Clear Interrupt Flag and overflow
           TIMER_A2->CCR[4] = (TIMER_A2->CCR[4] + 30000) % 0xFFFF; //Set next occurrence to happen in 10ms
-          P6->OUT &= ~0x20;
+          P3->OUT &= ~0x20;
           break;
 
       default:

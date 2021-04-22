@@ -111,4 +111,6 @@ uint32_t getLeftDistance(void);
 
 uint32_t getRightDistance(void);
 
+uint32_t getFrontDistance(void);
+
 #endif /* ULTRASOUND_H_ */

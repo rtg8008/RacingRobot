@@ -62,7 +62,7 @@ int first_read[NUMBER_OF_SENSORS] = {1, 1, 1};
 double duration[NUMBER_OF_SENSORS];
 uint32_t distance[NUMBER_OF_SENSORS], LPF_distance[NUMBER_OF_SENSORS];
 
-int N = 10;        //N = number of samples
+int N = 16;        //N = number of samples
 
 
 void ultrasoundint(uint16_t currenttime, int sensor_number) {
@@ -98,12 +98,16 @@ void ultrasoundint(uint16_t currenttime, int sensor_number) {
 }
 
 
-uint32_t getLeftDistance(void) {
+uint32_t getLeftDistance(void) {    //P5.6
     return LPF_distance[0];
 }
 
-uint32_t getRightDistance(void) {
+uint32_t getRightDistance(void) {   //P5.7
     return LPF_distance[1];
+}
+
+uint32_t getFrontDistance(void) {   //P6.6
+    return LPF_distance[2];
 }
 
 
@@ -115,10 +119,10 @@ uint32_t getRightDistance(void) {
 // Input: none
 // Output: none
 void Ultrasound_Init(void){
-  // initialize P6.4 and make it GPIO
-  P6->SEL0 &= ~0x20;
-  P6->SEL1 &= ~0x20;               // configure P6.5 as GPIO
-  P6->DIR |= 0x20;                 // make P6.5 output
-  P6->OUT &= ~0x20;
+  // initialize P3.5 and make it GPIO
+  P3->SEL0 &= ~0x20;
+  P3->SEL1 &= ~0x20;               // configure P3.5 as GPIO
+  P3->DIR |= 0x20;                 // make P3.5 output
+  P3->OUT &= ~0x20;
   TimerA2Capture_Init(&ultrasoundint);
 }

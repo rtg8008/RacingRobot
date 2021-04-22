@@ -47,6 +47,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/CortexM.h"
 #include "../inc/Motor.h"
 #include "../inc/Tachometer.h"
+#include "../inc/FlashProgram.h"
 #include "../inc/TA3InputCapture.h"
 #include "../inc/TimerA1.h"
 #include "../inc/FlashProgram.h"
@@ -58,8 +59,6 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/Ultrasound.h"
 #include "../inc/EUSCIA0.h"
 #include "../inc/Launchpad.h"
-
-//Period0, Speed0, etc. is the right side. Period1, Speed1, etc. the left.
 
 int bump_trigger = 0;
 
@@ -83,14 +82,7 @@ void main(void){
     EUSCIA0_Init();     // initialize UART
     EnableInterrupts();
 
-  while(1){
-      if( bump_trigger == 1) {
-          DisableInterrupts();
-          bump_trigger = 0;
-          Pause();
-          EnableInterrupts();
-      }
-  };
+  while(1){};
 }
 
 void PORT4_IRQHandler(void) {
