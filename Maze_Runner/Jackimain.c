@@ -67,16 +67,26 @@ void Pause(void){
   while(LaunchPad_Input());     // wait for release
 }
 
+void Port1_Init2(void){
+  P1->SEL0 &= ~0x13;
+  P1->SEL1 &= ~0x13;   // 1) configure P1.4  P1.1 P1.0 as GPIO
+  P1->DIR &= ~0x12;    // 2) make P1.4 and P1.1 in
+  P1->DIR |= 0x01;     // 2) make P1.0 out
+  P1->REN |= 0x12;     // 3) enable pull resistors on P1.4 and P1.1
+  P1->OUT |= 0x12;     //    P1.4 and P1.1 are pull-up
+}
+
 void main(void){
     DisableInterrupts();
     Debug_FlashInit();   // initialize flash memory for storage
     Clock_Init48MHz();   // 48 MHz clock; 12 MHz Timer A clock
+    Port1_Init2();      //enable light for solved state
     LaunchPad_Init();
     Ultrasound_Init();   // inititialize ultrasound sensors
     Motor_Init();        // activate Lab 12 software
     TimerA3Capture_Init(&PeriodMeasure0, &PeriodMeasure1, &Wheel_Controller, &Position_Controller);    // initialize tachometers and PID controllers
     Motor_Forward(5000,5000);
-    //TimerA1_Init(&Collect); // initialize flash interrupts and line sensors
+    TimerA1_Init(&Reflectance_Start, &Reflectance_End);     // initialize line sensors
     Bump_Edge_Init();         // initialize bump sensors
     Tach_Init();         // Initialize Tachometers
     EUSCIA0_Init();     // initialize UART

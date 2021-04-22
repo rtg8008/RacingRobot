@@ -40,8 +40,16 @@ policies, either expressed or implied, of the FreeBSD Project.
 
 #include <stdint.h>
 #include "msp.h"
+#include "../inc/SysTick.h"
+#include "../inc/Reflectance.h"
+#include "../inc/Motor.h"
 
-void (*TimerA1Task)(void);   // user function
+void ta1dummy(void){};      // dummy function
+uint8_t ta1dummy2(void){return 0;};  //dummy function
+void (*TimerA1Task0)(void) = ta1dummy; // user function
+uint8_t (*TimerA1Task1)(void) = ta1dummy2; // user function
+
+uint8_t light;
 
 // ***************** TimerA1_Init ****************
 // Activate Timer A1 interrupts to run user task periodically
@@ -49,18 +57,23 @@ void (*TimerA1Task)(void);   // user function
 //          period in units (24/SMCLK), 16 bits
 // Outputs: none
 // With SMCLK 12 MHz, period has units 2us
-void TimerA1_Init(void(*task)(void)){
-    TimerA1Task = task;
+void TimerA1_Init(void(*task0)(void), uint8_t(*task1)(void)){
+    TimerA1Task0 = task0;
+    TimerA1Task1 = task1;
 
     TIMER_A1->CTL = 0x0280; //Configure to use 3Mz clock; Stop Clock; No Overarching interrupts
     TIMER_A1->EX0 = 0x0007; // Further Prescale -> minimize clock to 375kHz (least switching to achieve 1ms value by integer number); 375 cycles/1ms
 
-    //Evaluate Data
-    TIMER_A1->CCTL[0] = 0x0010; //Compare mode; enable interrupt
-    TIMER_A1->CCR[0] = 3750; //Every 10ms with no offset (will add onto this value each time in handler)
+    //Light Sensor 1
+    TIMER_A1->CCTL[2] = 0x0010; //Compare mode; enable interrupt
+    TIMER_A1->CCR[2] = 37500; //offset of 100 ms
+
+    //Light Sensor 2
+    TIMER_A1->CCTL[3] = 0x0010; //Compare mode; enable interrupt
+    TIMER_A1->CCR[3] = 37875; //offset of 101 ms (1ms from Light Sensor 1)
 
     //NVIC Stuff
-    NVIC->IP[2] = (NVIC->IP[2] & ~0xE0E00000)|0x00000000; //Priority 0
+    NVIC->IP[2] = (NVIC->IP[2] & ~0xE0E00000)|0x40000000; //Priority 2
     NVIC->ISER[0] |= 0x00000C00; //Enable all Timer A1 interrupts
 
     //Reset & Start Timer in Continuous Mode
@@ -69,20 +82,34 @@ void TimerA1_Init(void(*task)(void)){
 
 void TA1_0_IRQHandler(void)
 {
-    TIMER_A1->CCTL[0] &= ~0x0001; //Clear Interrupt Flag
-    TIMER_A1->CCR[0] = (TIMER_A1->CCR[0] + 3750) % 0xFFFF; //Set next occurrence to happen in 10ms
-    (*TimerA1Task)();   // execute user task
+
 }
 
 void TA1_N_IRQHandler(void)
 {
-    /*
     switch(TIMER_A1->IV)
     {
+        case 4: //CCR2; Light Sensor 1
+            TIMER_A1->CCTL[2] &= ~0x0001; //Clear Interrupt Flag
+            TIMER_A1->CCR[2] = (TIMER_A1->CCR[2] + 37500) % 0xFFFF; //Set next occurrence to happen in 100ms
+            (*TimerA1Task0)();;
+            break;
+        case 6: //CCR3; Light Sensor 2
+            TIMER_A1->CCTL[3] &= ~0x0001; //Clear Interrupt Flag
+            TIMER_A1->CCR[3] = (TIMER_A1->CCR[3] + 37500) % 0xFFFF; //Set next occurrence to happen in 100ms
+            light = (*TimerA1Task1)();;
+
+            if( light > 0) {    //over top of the line
+                while(1) {
+                    Motor_Stop();
+                    P1->OUT ^= 0x01;
+                    SysTick_Wait10ms(50);
+                }
+            }
+            break;
         default:
             break;
     }
-    */
 }
 
 
