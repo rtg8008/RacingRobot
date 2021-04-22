@@ -116,8 +116,6 @@ void Position_Controller(void) {
     right_distance = getRightDistance();
     front_distance = getFrontDistance();
 
-    Error = right_distance - 10;    //hug the right wall at distance of 10cm
-
     if( front_distance < 20) {  //check if there's anything in front of us
         if ( left_distance > 30) { //only left path is open
             //turn left
@@ -128,30 +126,34 @@ void Position_Controller(void) {
             Xstar0 = 0;
             Xstar1 = 75;
             Ui = 0;  //reset the integral controller
+            return;
         }
     }
     else {  //right path open or straight away
+        Error = right_distance - 10;    //hug the right wall at distance of 10cm
+    }
 
-        Up = (Kp*Error*deltaT)/1000;    //proportional
-        Ui += (Ki*Error*deltaT)/1000;   //integral
-        U = Up + Ui;    //PI controller
+    Up = (Kp*Error*deltaT)/1000;    //proportional
+    Ui += (Ki*Error*deltaT)/1000;   //integral
+    U = Up + Ui;    //PI controller
 
 //        if ( k % 100 == 0) {
 //            EUSCIA0_OutString("U = ");
 //            EUSCIA0_OutSDec(U);
 //            EUSCIA0_OutString("\n");
 //        }
-        k++;
-        if(U>=50) {
-            U = 50;
-        }
-        if(U<=-50) {
-            U = -50;
-        }
-        Xstar0 = RPMNOMINAL - U;
-        Xstar1 = RPMNOMINAL + U;
+    k++;
+    if(U>=50) {
+        U = 50;
     }
+    if(U<=-50) {
+        U = -50;
+    }
+    Xstar0 = RPMNOMINAL - U;
+    Xstar1 = RPMNOMINAL + U;
 }
+
+
 
 void old_Position_Controller(void) {
     //get current filtered measurements from ultrasonics
