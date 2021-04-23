@@ -51,8 +51,8 @@ policies, either expressed or implied, of the FreeBSD Project.
 
 void ta3dummy(uint16_t t){};       // dummy function
 void ta3dummy2(void){}             // dummy function
-void (*CaptureTask0)(uint16_t time) = ta3dummy; // user function
-void (*CaptureTask1)(uint16_t time) = ta3dummy; // user function
+void (*CaptureTask0)(uint16_t time0) = ta3dummy; // user function
+void (*CaptureTask1)(uint16_t time1) = ta3dummy; // user function
 void (*CaptureTask2)(void) = ta3dummy; // user function
 void (*CaptureTask3)(void) = ta3dummy; // user function
 
@@ -68,7 +68,7 @@ void (*CaptureTask3)(void) = ta3dummy; // user function
 //              parameter is 16-bit up-counting timer value when P10.5 (TA3CCP1) edge occurred (units of 0.083 usec)
 // Output: none
 // Assumes: low-speed subsystem master clock is 12 MHz
-void TimerA3Capture_Init01(void(*task0)(uint16_t time), void(*task1)(uint16_t time)){
+void TimerA3Capture_Init01(void(*task0)(uint16_t time0), void(*task1)(uint16_t time1)){
     CaptureTask0 = task0;
     CaptureTask1 = task1;
 
@@ -94,7 +94,7 @@ void TimerA3Capture_Init01(void(*task0)(uint16_t time), void(*task1)(uint16_t ti
     TIMER_A3->CTL |= 0x0024; //Reset and Start Timer in Continuous Mode
 }
 
-void TimerA3Capture_Init(void(*task0)(uint16_t time), void(*task1)(uint16_t time), void(*task2)(void), void(*task3)(void)){
+void TimerA3Capture_Init(void(*task0)(uint16_t time0), void(*task1)(uint16_t time1), void(*task2)(void), void(*task3)(void)){
     CaptureTask0 = task0;
     CaptureTask1 = task1;
     CaptureTask2 = task2;

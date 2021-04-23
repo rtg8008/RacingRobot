@@ -102,16 +102,22 @@ void Wheel_Controller(void) { //CONTROLS SPEED OF BOTH WHEELS
     UL += (Ki1*Error1*deltaT)/(1000);
     j++;
 
+    if(UL < 0) {UL = 0;}
+    if(UR < 0) {UR = 0;}
+    if(UL > 14998) {UL = 14998;}
+    if(UR > 14998) {UR = 14998;}
     Motor_Forward(UL, UR);
 }
 
-
+#define sideThreshold 30
+#define frontThreshold 15
 int32_t Desired_Position = 0;   // (distance from left wall) - (distance from right wall) in cm
-int32_t Kp = 20;
-int32_t Ki = 5;
-int32_t Up, Ui, U, Error, Xprime, left_distance, right_distance, front_distance, initial_edge, current_edge;
+int32_t Kp = 40;
+int32_t Ki = 0;
+int32_t Kd = 40;
+int32_t Up, Ui, Ud, U, Error, last_error = -1000, Xprime, left_distance, right_distance, front_distance, initial_edge, current_edge;
 int k = 0;
-int turn_threshold = 350;
+int turn_threshold = 340;
 
 void Position_Controller(void) {
 
@@ -120,27 +126,34 @@ void Position_Controller(void) {
         {
             case 1: //turning right
                 current_edge = getEdges1();
-                turn_threshold = 350;
+                turn_threshold = 340;
                 P2->OUT = (P2->OUT&0xF8)|(BLUE+RED);
                 break;
             case 2: //turning left
                 current_edge = getEdges0();
-                turn_threshold = 350;
+                turn_threshold = 340;
                 P2->OUT = (P2->OUT&0xF8)|BLUE;
                 break;
             case 3: //turning 180
-                current_edge = getEdges1();
-                turn_threshold = 350;
+                current_edge = getEdges0();
+                turn_threshold = 368;
                 P2->OUT = (P2->OUT&0xF8)|GREEN;
                 break;
             case 4: //going straight
                 current_edge = getEdges1();
-                turn_threshold = 92;
+                turn_threshold = 300;
                 P2->OUT = (P2->OUT&0xF8)|RED;
-            case 5:
+                break;
+            case 5: //going straight
                 current_edge = getEdges0();
-                turn_threshold = 92;
+                turn_threshold = 300;
                 P2->OUT = (P2->OUT&0xF8)|RED;
+                break;
+            case 6: //going straight before right turn
+                current_edge = getEdges1();
+                turn_threshold = 100;
+                P2->OUT = (P2->OUT&0xF8)|RED;
+                break;
         }
         if( current_edge - initial_edge >= turn_threshold) {
             if( turn == 1) {   //move forward after a left or right turn
@@ -148,15 +161,21 @@ void Position_Controller(void) {
                 turn = 4;
                 Motor_Forward(5000,5000);
             }
-            else if( turn == 2) {
+            else if( turn == 6) {
+                initial_edge = current_edge;
+                turn = 1;
+                Motor_Forward(5000, 0);
+            }
+            else if( turn == 2 || turn == 3) {
                 initial_edge = current_edge;
                 turn = 5;
                 Motor_Forward(5000,5000);
             }
-            else if( turn == 3 || turn == 4 || turn == 5) {
+            else if( turn == 4 || turn == 5) {
                 turn = 0;
-
-                Motor_Stop();
+                Ui = 0;
+                last_error = -1000;
+                //Motor_Stop();
             }
         }
         return;
@@ -166,31 +185,37 @@ void Position_Controller(void) {
     left_distance = getLeftDistance();
     right_distance = getRightDistance();
     front_distance = getFrontDistance();
+    P2->OUT = (P2->OUT&0xF8);
 
-
-    if( right_distance > 30) {
-        turn = 1;
+    if( right_distance > sideThreshold) {
+        turn = 6;
+        //Motor_Stop();
         initial_edge = getEdges1();
-        Motor_Forward(5000,0);
+        Motor_Forward(5000,5000);
     }
-    else if( front_distance < 15) {  //check if there's anything in front of us
-        if ( left_distance > 30) { //only left path is open
+    else if( front_distance < frontThreshold) {  //check if there's anything in front of us
+        if ( left_distance > sideThreshold) { //only left path is open
             turn = 2;
             initial_edge = getEdges0();
             Motor_Forward(0,5000);
         }
         else {      //at a dead end
             turn = 3;
-            initial_edge = getEdges1();
-            Motor_Left(5000,5000);   //turn 180 degrees in place
+            initial_edge = getEdges0();
+            Motor_Right(5000,5000);   //turn 180 degrees in place
         }
     }
     else {  //straight away
-        Error = right_distance - 15;    //hug the right wall at distance of 20cm
+        Error = right_distance - 10;    //hug the right wall at distance of 20cm
 
         Up = (Kp*Error*deltaT)/1000;    //proportional
         Ui += (Ki*Error*deltaT)/1000;   //integral
-        U = Up + Ui;    //PI controller
+        Ud = Kd*(Error - last_error)*1000/deltaT; //derivative
+        if( last_error == -1000) {
+            Ud = 0;
+        }
+        U = Up + Ui + Ud;    //PI controller
+        last_error = Error;
 
     //        if ( k % 100 == 0) {
     //            EUSCIA0_OutString("U = ");
@@ -198,11 +223,11 @@ void Position_Controller(void) {
     //            EUSCIA0_OutString("\n");
     //        }
         k++;
-        if(U>=75) {
-            U = 75;
+        if(U>=RPMNOMINAL) {
+            U = RPMNOMINAL;
         }
-        if(U<=-75) {
-            U = -75;
+        if(U<= -1*RPMNOMINAL) {
+            U = -1*RPMNOMINAL;
         }
         Xstar0 = RPMNOMINAL - U;    //set values for right and left wheel in rpm
         Xstar1 = RPMNOMINAL + U;
