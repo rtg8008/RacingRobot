@@ -57,6 +57,8 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/Ultrasound.h"
 #include "../inc/EUSCIA0.h"
 #include "../inc/Launchpad.h"
+#include "../inc/UART1.h"
+#include "../inc/AP.h"
 
 int bump_trigger = 0;
 
@@ -82,6 +84,7 @@ void Port2_Init2(void){
 }
 
 void main(void){
+    Go = 1;
     DisableInterrupts();
     Clock_Init48MHz();   // 48 MHz clock; 12 MHz Timer A clock
     Port1_Init2();      //enable light for solved state
@@ -95,9 +98,33 @@ void main(void){
     Bump_Edge_Init();         // initialize bump sensors
     Tach_Init();         // Initialize Tachometers
     EUSCIA0_Init();     // initialize UART
+    UART0_Init();
     EnableInterrupts();
+    uint32_t time=0;
+    BLE_Init();
 
-  while(1){};
+    while(1){
+      time++;
+      AP_BackgroundProcess();  // handle incoming SNP frames
+      if(time>100000){
+        time = 0;
+        lDist = getLeftDistance();
+        if(AP_GetNotifyCCCD(0)){
+          AP_SendNotification(0);
+        }
+        rDist = getRightDistance();
+        if(AP_GetNotifyCCCD(1)){
+          AP_SendNotification(1);
+        }
+        fDist = getFrontDistance();
+        if(AP_GetNotifyCCCD(2)){
+          AP_SendNotification(2);
+        }
+        if(AP_GetNotifyCCCD(3)){
+          AP_SendNotification(3);
+        }
+      }
+    }
 }
 
 void PORT4_IRQHandler(void) {

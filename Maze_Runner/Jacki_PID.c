@@ -65,6 +65,7 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/Jacki_Tachometer.h"
 #include "../inc/EUSCIA0.h"
 #include "../inc/Ultrasound.h"
+#include "../inc/AP.h"
 
 //******************************************************
 // Distance to wall proportional control
@@ -72,10 +73,12 @@ policies, either expressed or implied, of the FreeBSD Project.
 // Integral control, Line follower
 
 
-#define RPMNOMINAL 75
+#define RPMNOMINAL 50
 #define RED       0x01
 #define GREEN     0x02
 #define BLUE      0x04
+
+extern uint8_t Go;
 
 
 int32_t deltaT = 10;     //time between tach readings (ms)
@@ -112,47 +115,53 @@ void Wheel_Controller(void) { //CONTROLS SPEED OF BOTH WHEELS
 #define sideThreshold 30
 #define frontThreshold 15
 int32_t Desired_Position = 0;   // (distance from left wall) - (distance from right wall) in cm
-int32_t Kp = 40;
+int32_t Kp = 130;
 int32_t Ki = 0;
-int32_t Kd = 40;
+int32_t Kd = 8;
 int32_t Up, Ui, Ud, U, Error, last_error = -1000, Xprime, left_distance, right_distance, front_distance, initial_edge, current_edge;
 int k = 0;
 int turn_threshold = 340;
 
 void Position_Controller(void) {
-
+    if(!Go) {
+        turn = 7;
+        Motor_Stop();
+        return;
+    }
     if( turn != 0) {
         switch(turn)
         {
             case 1: //turning right
                 current_edge = getEdges1();
-                turn_threshold = 340;
+                turn_threshold = 184;
                 P2->OUT = (P2->OUT&0xF8)|(BLUE+RED);
                 break;
             case 2: //turning left
                 current_edge = getEdges0();
-                turn_threshold = 340;
+                turn_threshold = 178;
                 P2->OUT = (P2->OUT&0xF8)|BLUE;
                 break;
             case 3: //turning 180
                 current_edge = getEdges0();
-                turn_threshold = 368;
+                turn_threshold = 390;
                 P2->OUT = (P2->OUT&0xF8)|GREEN;
                 break;
             case 4: //going straight
                 current_edge = getEdges1();
-                turn_threshold = 300;
+                turn_threshold = 380;
                 P2->OUT = (P2->OUT&0xF8)|RED;
                 break;
             case 5: //going straight
                 current_edge = getEdges0();
-                turn_threshold = 300;
+                turn_threshold = 380;
                 P2->OUT = (P2->OUT&0xF8)|RED;
                 break;
             case 6: //going straight before right turn
                 current_edge = getEdges1();
-                turn_threshold = 100;
+                turn_threshold = 150;
                 P2->OUT = (P2->OUT&0xF8)|RED;
+                break;
+            case 7: // Go Disabled
                 break;
         }
         if( current_edge - initial_edge >= turn_threshold) {
@@ -164,7 +173,7 @@ void Position_Controller(void) {
             else if( turn == 6) {
                 initial_edge = current_edge;
                 turn = 1;
-                Motor_Forward(5000, 0);
+                Motor_Left(5000, 5000);
             }
             else if( turn == 2 || turn == 3) {
                 initial_edge = current_edge;
@@ -175,6 +184,7 @@ void Position_Controller(void) {
                 turn = 0;
                 Ui = 0;
                 last_error = -1000;
+                //BLE_Init();
                 //Motor_Stop();
             }
         }
@@ -197,7 +207,7 @@ void Position_Controller(void) {
         if ( left_distance > sideThreshold) { //only left path is open
             turn = 2;
             initial_edge = getEdges0();
-            Motor_Forward(0,5000);
+            Motor_Right(5000,5000);
         }
         else {      //at a dead end
             turn = 3;
@@ -206,7 +216,7 @@ void Position_Controller(void) {
         }
     }
     else {  //straight away
-        Error = right_distance - 10;    //hug the right wall at distance of 20cm
+        Error = right_distance - 8;    //hug the right wall at distance of 20cm
 
         Up = (Kp*Error*deltaT)/1000;    //proportional
         Ui += (Ki*Error*deltaT)/1000;   //integral
