@@ -84,10 +84,10 @@ extern uint8_t Go;
 int32_t deltaT = 10;     //time between tach readings (ms)
 
 int32_t Xstar0 = 100;      //desired speed (rpm)
-int32_t Ki0 = 50;          //integral controller coefficient
+int32_t Ki0 = 80;          //integral controller coefficient
 int32_t UR, Error0, Xprime0;
 int32_t Xstar1 = 100;
-int32_t Ki1 = 50;
+int32_t Ki1 = 80;
 int32_t UL, Error1, Xprime1;
 int j = 0, turn = 0;  //buffer is value for manually controlled turns
 void Wheel_Controller(void) { //CONTROLS SPEED OF BOTH WHEELS
@@ -112,12 +112,12 @@ void Wheel_Controller(void) { //CONTROLS SPEED OF BOTH WHEELS
     Motor_Forward(UL, UR);
 }
 
-#define sideThreshold 30
-#define frontThreshold 15
+#define sideThreshold 300
+#define frontThreshold 150
 int32_t Desired_Position = 0;   // (distance from left wall) - (distance from right wall) in cm
-int32_t Kp = 130;
+int32_t Kp = 100;
 int32_t Ki = 0;
-int32_t Kd = 8;
+int32_t Kd = 10;
 int32_t Up, Ui, Ud, U, Error, last_error = -1000, Xprime, left_distance, right_distance, front_distance, initial_edge, current_edge;
 int k = 0;
 int turn_threshold = 340;
@@ -133,59 +133,70 @@ void Position_Controller(void) {
         {
             case 1: //turning right
                 current_edge = getEdges1();
-                turn_threshold = 184;
+                turn_threshold = 185;
                 P2->OUT = (P2->OUT&0xF8)|(BLUE+RED);
                 break;
             case 2: //turning left
                 current_edge = getEdges0();
-                turn_threshold = 178;
+                turn_threshold = 185;
                 P2->OUT = (P2->OUT&0xF8)|BLUE;
                 break;
             case 3: //turning 180
                 current_edge = getEdges0();
-                turn_threshold = 390;
+                turn_threshold = 370;
                 P2->OUT = (P2->OUT&0xF8)|GREEN;
                 break;
             case 4: //going straight
                 current_edge = getEdges1();
                 turn_threshold = 380;
-                P2->OUT = (P2->OUT&0xF8)|RED;
+                P2->OUT = (P2->OUT&0xF8)|(GREEN+BLUE);
                 break;
             case 5: //going straight
                 current_edge = getEdges0();
                 turn_threshold = 380;
-                P2->OUT = (P2->OUT&0xF8)|RED;
+                P2->OUT = (P2->OUT&0xF8)|(GREEN+RED);
                 break;
             case 6: //going straight before right turn
                 current_edge = getEdges1();
-                turn_threshold = 150;
+                turn_threshold = 180;
                 P2->OUT = (P2->OUT&0xF8)|RED;
                 break;
-            case 7: // Go Disabled
+            case 7: // Go Disabled (Bluetooth)
+                break;
+            case 8: // going straight before left turn
+                current_edge = getEdges0();
+                turn_threshold = 100;
+                P2->OUT = (P2->OUT&0xF8)|RED;
                 break;
         }
+
         if( current_edge - initial_edge >= turn_threshold) {
             if( turn == 1) {   //move forward after a left or right turn
                 initial_edge = current_edge;
                 turn = 4;
-                Motor_Forward(5000,5000);
+                Motor_Forward(3500,3500);
             }
             else if( turn == 6) {
                 initial_edge = current_edge;
                 turn = 1;
-                Motor_Left(5000, 5000);
+                Motor_Left(3500, 3500);
+            }
+            else if( turn == 8) {
+                initial_edge = current_edge;
+                turn = 2;
+                Motor_Right(3500, 3500);
             }
             else if( turn == 2 || turn == 3) {
                 initial_edge = current_edge;
                 turn = 5;
-                Motor_Forward(5000,5000);
+                Motor_Forward(3500,3500);
             }
             else if( turn == 4 || turn == 5) {
                 turn = 0;
                 Ui = 0;
                 last_error = -1000;
-                //BLE_Init();
-                //Motor_Stop();
+                UR = 3500;
+                UL = 3500;
             }
         }
         return;
@@ -201,37 +212,32 @@ void Position_Controller(void) {
         turn = 6;
         //Motor_Stop();
         initial_edge = getEdges1();
-        Motor_Forward(5000,5000);
+        Motor_Forward(3500,3500);
     }
     else if( front_distance < frontThreshold) {  //check if there's anything in front of us
         if ( left_distance > sideThreshold) { //only left path is open
-            turn = 2;
+            turn = 8;
             initial_edge = getEdges0();
-            Motor_Right(5000,5000);
+            Motor_Forward(3500,3500);
         }
         else {      //at a dead end
             turn = 3;
             initial_edge = getEdges0();
-            Motor_Right(5000,5000);   //turn 180 degrees in place
+            Motor_Right(3500,3500);   //turn 180 degrees in place
         }
     }
     else {  //straight away
-        Error = right_distance - 8;    //hug the right wall at distance of 20cm
+        Error = right_distance - 80;    //hug the right wall at distance of 20cm
 
-        Up = (Kp*Error*deltaT)/1000;    //proportional
+        Up = (Kp*Error)/1000;    //proportional
         Ui += (Ki*Error*deltaT)/1000;   //integral
         Ud = Kd*(Error - last_error)*1000/deltaT; //derivative
         if( last_error == -1000) {
             Ud = 0;
         }
-        U = Up + Ui + Ud;    //PI controller
+        U = Up + Ui + Ud;    //PID controller
         last_error = Error;
 
-    //        if ( k % 100 == 0) {
-    //            EUSCIA0_OutString("U = ");
-    //            EUSCIA0_OutSDec(U);
-    //            EUSCIA0_OutString("\n");
-    //        }
         k++;
         if(U>=RPMNOMINAL) {
             U = RPMNOMINAL;
@@ -243,79 +249,3 @@ void Position_Controller(void) {
         Xstar1 = RPMNOMINAL + U;
     }
 }
-
-//void old_Position_Controller2(void) {
-//    //get current filtered measurements from ultrasonics
-//    left_distance = getLeftDistance();
-//    right_distance = getRightDistance();
-//    front_distance = getFrontDistance();
-//
-//
-//    if( front_distance < 20) {  //check if there's anything in front of us
-//        if( right_distance > 30) {
-//            Error = right_distance - 10;    //hug the right wall at distance of 10cm
-//        }
-//        else if ( left_distance > 30) { //only left path is open
-//            Error = left_distance - right_distance; //redefine distance so that we turn left (done by setting error to the distance from center of wall)
-//        }
-//        else {      //at a dead end
-//            //turn right until we see a right path
-//            Xstar0 = 0;
-//            Xstar1 = 75;
-//            Ui = 0;  //reset the integral controller
-//            return;
-//        }
-//    }
-//    else {  //right path open or straight away
-//        Error = right_distance - 10;    //hug the right wall at distance of 10cm
-//    }
-//
-//    Up = (Kp*Error*deltaT)/1000;    //proportional
-//    Ui += (Ki*Error*deltaT)/1000;   //integral
-//    U = Up + Ui;    //PI controller
-//
-////        if ( k % 100 == 0) {
-////            EUSCIA0_OutString("U = ");
-////            EUSCIA0_OutSDec(U);
-////            EUSCIA0_OutString("\n");
-////        }
-//    k++;
-//    if(U>=50) {
-//        U = 50;
-//    }
-//    if(U<=-50) {
-//        U = -50;
-//    }
-//    Xstar0 = RPMNOMINAL - U;    //set values for right and left wheel in rpm
-//    Xstar1 = RPMNOMINAL + U;
-//}
-//
-//
-//
-//void old_Position_Controller(void) {
-//    //get current filtered measurements from ultrasonics
-//    left_distance = getLeftDistance();
-//    right_distance = getRightDistance();
-//
-//    Xprime = left_distance - right_distance;
-//    Error = Desired_Position - Xprime;
-//
-//    Up = (Kp*Error*deltaT)/1000;    //proportional
-//    Ui += (Ki*Error*deltaT)/1000;   //integral
-//    U = Up + Ui;    //PI controller
-//
-////    if ( k % 100 == 0) {
-////        EUSCIA0_OutString("U = ");
-////        EUSCIA0_OutSDec(U);
-////        EUSCIA0_OutString("\n");
-////    }
-//    k++;
-//    if(U>=50) {
-//        U = 50;
-//    }
-//    if(U<=-50) {
-//        U = -50;
-//    }
-//    Xstar0 = RPMNOMINAL - U;
-//    Xstar1 = RPMNOMINAL + U;
-//}

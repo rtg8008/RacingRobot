@@ -75,7 +75,7 @@ void ultrasoundint(uint16_t currenttime, int sensor_number) {
 
         width[sensor_number] = second_edge[sensor_number] - first_edge[sensor_number];
         duration[sensor_number] = (width[sensor_number])*(1.0/3);              //take average an divide by 3 to put in terms of microseconds
-        distance[sensor_number] = (duration[sensor_number]*343) / (2*10000);   //convert microseconds to distance
+        distance[sensor_number] = (duration[sensor_number]*343) / (2*1000);   //convert microseconds to distance
 
         /*LOW PASS FILTER*/
         if( first_read[sensor_number] == 1) {
