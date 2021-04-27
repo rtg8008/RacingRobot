@@ -55,15 +55,13 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "msp.h"
 
 #define NUMBER_OF_SENSORS 3
+#define N 16    //number of samples in low pass filter
 
 uint16_t first_edge[NUMBER_OF_SENSORS], second_edge[NUMBER_OF_SENSORS], width[NUMBER_OF_SENSORS];
 int Ultrasound_Count[NUMBER_OF_SENSORS] = {0};          //incremented with every interrupt
 int first_read[NUMBER_OF_SENSORS] = {1, 1, 1};
 double duration[NUMBER_OF_SENSORS];
 uint32_t distance[NUMBER_OF_SENSORS], LPF_distance[NUMBER_OF_SENSORS];
-
-int N = 16;        //N = number of samples
-
 
 void ultrasoundint(uint16_t currenttime, int sensor_number) {
 
