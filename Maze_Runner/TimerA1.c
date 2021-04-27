@@ -40,7 +40,8 @@ policies, either expressed or implied, of the FreeBSD Project.
 
 #include <stdint.h>
 #include "msp.h"
-#include "../inc/SysTick.h"
+#include "../inc/Clock.h"
+#include "../inc/CortexM.h"
 #include "../inc/Reflectance.h"
 #include "../inc/Motor.h"
 
@@ -99,11 +100,12 @@ void TA1_N_IRQHandler(void)
             TIMER_A1->CCR[3] = (TIMER_A1->CCR[3] + 37500) % 0xFFFF; //Set next occurrence to happen in 100ms
             light = (*TimerA1Task1)();;
 
-            if( light > 0) {    //over top of the line
+            if( light < 0xFF) {    //over top of the white area (solved state)
                 while(1) {
+                    DisableInterrupts();
                     Motor_Stop();
-                    P1->OUT ^= 0x01;
-                    SysTick_Wait10ms(50);
+                    P1->OUT ^= 0x01;    //toggle red LED
+                    Clock_Delay1ms(500);
                 }
             }
             break;

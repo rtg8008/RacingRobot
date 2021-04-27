@@ -86,7 +86,7 @@ void main(void){
     Motor_Init();        // activate Lab 12 software
     TimerA3Capture_Init(&PeriodMeasure0, &PeriodMeasure1, &Wheel_Controller, &Position_Controller);    // initialize tachometers and PID controllers
     Motor_Forward(5000,5000);
-    //TimerA1_Init(&Reflectance_Start, &Reflectance_End);     // initialize line sensors
+    TimerA1_Init(&Reflectance_Start, &Reflectance_End);     // initialize line sensors
     Bump_Edge_Init();         // initialize bump sensors
     Tach_Init();         // Initialize Tachometers
     EUSCIA0_Init();     // initialize UART
