@@ -124,7 +124,7 @@ int32_t Ki = 0;     //integral coefficient
 int32_t Kd = 10;    //derivative coefficient
 int32_t Up, Ui, Ud, U, Error, last_error = -1000, Xprime, left_distance, right_distance, front_distance, initial_edge, current_edge;
 int k = 0;
-int turn_threshold;   //amount of tachometer edge readings needed to complete move
+int16_t turn_threshold;   //amount of tachometer edge readings needed to complete move
 
 /* Main PID and manual move controller to solve the maze */
 void Position_Controller(void) {

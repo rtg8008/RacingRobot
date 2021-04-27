@@ -60,8 +60,6 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/UART0.h"
 #include "../inc/AP.h"
 
-int bump_trigger = 0;
-
 //light for solved state
 void Port1_Init2(void){
   P1->SEL0 &= ~0x01;
@@ -125,6 +123,6 @@ void main(void){
 
 void PORT4_IRQHandler(void) {
     P4->IFG &= ~0xED;          // clear interrupt flag
-    bump_trigger = 1;
     Motor_Stop();
+    while(1){}
 }
