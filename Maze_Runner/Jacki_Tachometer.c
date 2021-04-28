@@ -89,18 +89,15 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/EUSCIA0.h"
 #include "../inc/LPF.h"
 
-uint16_t Duty;
-int32_t* DutyBuffer;
-uint16_t Time;
-uint32_t flashAddr;
-int LPF_N = 16;     //number of samples in low pass filters
+
+#define LPF_N 16     //number of samples in low pass filters
 
 uint16_t Period0;               // 1.67us units
 int32_t Speed0;
 uint16_t First0;                // Timer A3 first edge, P10.4
 int32_t Edges0;                 // Simple counter to count number of edges
-int32_t* SpeedArr0;
 int first_read0 = 0;
+
 void PeriodMeasure0(uint16_t time){
 
   Period0 = (time - First0)&0xFFFF; // 16 bits, 1.67us resolution
@@ -129,8 +126,8 @@ uint16_t Period1;               // 1.67us units
 int32_t Speed1;
 uint16_t First1;                // Timer A3 first edge, P10.5
 int32_t Edges1;                 // Simple counter to count number of edges
-int32_t* SpeedArr1;
 int first_read1 = 0;
+
 void PeriodMeasure1(uint16_t time){
   Period1 = (time - First1)&0xFFFF; // 16 bits, 1.67us resolution
   if((P5->IN)&(0x04))
@@ -173,7 +170,5 @@ int32_t getEdges1(void) {       //left motor
 
 void Tach_Init(void){ //main1(void){
   First0 = First1 = 0; // first will be wrong
-  SpeedArr0 = (int32_t*)malloc(20*sizeof(int32_t));
-  SpeedArr1 = (int32_t*)malloc(20*sizeof(int32_t));
 }
 

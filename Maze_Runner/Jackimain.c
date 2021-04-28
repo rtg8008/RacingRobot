@@ -56,16 +56,9 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/LPF.h"
 #include "../inc/Ultrasound.h"
 #include "../inc/EUSCIA0.h"
-#include "../inc/Launchpad.h"
 #include "../inc/UART1.h"
+#include "../inc/UART0.h"
 #include "../inc/AP.h"
-
-int bump_trigger = 0;
-
-void Pause(void){
-  while(LaunchPad_Input()==0);  // wait for touch
-  while(LaunchPad_Input());     // wait for release
-}
 
 //light for solved state
 void Port1_Init2(void){
@@ -89,17 +82,18 @@ void main(void){
     Clock_Init48MHz();   // 48 MHz clock; 12 MHz Timer A clock
     Port1_Init2();      //enable light for solved state
     Port2_Init2();
-    LaunchPad_Init();
     Ultrasound_Init();   // inititialize ultrasound sensors
     Motor_Init();        // activate Lab 12 software
     TimerA3Capture_Init(&PeriodMeasure0, &PeriodMeasure1, &Wheel_Controller, &Position_Controller);    // initialize tachometers and PID controllers
     Motor_Forward(5000,5000);
-    //TimerA1_Init(&Reflectance_Start, &Reflectance_End);     // initialize line sensors
+    TimerA1_Init(&Reflectance_Start, &Reflectance_End);     // initialize line sensors
     Bump_Edge_Init();         // initialize bump sensors
     Tach_Init();         // Initialize Tachometers
     EUSCIA0_Init();     // initialize UART
     UART0_Init();
     EnableInterrupts();
+
+    /* BLUETOOTH CONFIGURATION */
     uint32_t time=0;
     BLE_Init();
 
@@ -129,6 +123,6 @@ void main(void){
 
 void PORT4_IRQHandler(void) {
     P4->IFG &= ~0xED;          // clear interrupt flag
-    bump_trigger = 1;
     Motor_Stop();
+    while(1){}
 }

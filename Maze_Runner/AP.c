@@ -71,6 +71,8 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/Clock.h"
 #include "msp.h"
 #include "../inc/GPIO.h"
+#include "../inc/Ultrasound.h"
+#include "../inc/Motor.h"
 
 int u;
 
@@ -166,11 +168,11 @@ uint8_t NPI_GATTSetDeviceName[] = {
   0x77};          // FCS (calculated by AP_SendMessageResponse)
 uint8_t NPI_GATTSetDeviceNameJacki[] = {
 // students need to write this as part of Lab 19
-  SOF,14,0x00,    // length = 15
+  SOF,10,0x00,    // length = 15
   0x35,0x8C,      // SNP Set GATT Parameter (0x8C)
   0x01,           // Generic Access Service
   0x00,0x00,      // Device Name
-  'G','r','o','u','p',' ','A','l','p','h','a',
+  'G','u','i','s','e','p','p','e',
   0x77};          // FCS (calculated by AP_SendMessageResponse)
 uint8_t NPI_SetAdvertisementData[] = {   
   SOF,31,0x00,    // length = 31
@@ -191,11 +193,11 @@ uint8_t NPI_SetAdvertisementData[] = {
 
 uint8_t NPI_SetAdvertisementDataJacki[] = {
 // students need to write this as part of Lab 19
-  SOF,23,0x00,    // length = 24
+  SOF,19,0x00,    // length = 24
   0x55,0x43,      // SNP Set Advertisement Data
   0x00,           // Scan Response Data
   12,0x09,        // length, type=LOCAL_NAME_COMPLETE
-  'G','r','o','u','p',' ','A','l','p','h','a',
+  'G','i','u','s','e','p','p','e',
 
 // connection interval range
   0x05,           // length of this data
