@@ -71,7 +71,10 @@ policies, either expressed or implied, of the FreeBSD Project.
 #include "../inc/Clock.h"
 #include "msp.h"
 #include "../inc/GPIO.h"
+#include "../inc/Ultrasound.h"
+#include "../inc/Motor.h"
 
+int u;
 
 #define RECVSIZE 128
 uint8_t RecvBuf[RECVSIZE];
@@ -165,7 +168,12 @@ uint8_t NPI_GATTSetDeviceName[] = {
   0x77};          // FCS (calculated by AP_SendMessageResponse)
 uint8_t NPI_GATTSetDeviceNameJacki[] = {
 // students need to write this as part of Lab 19
- };          
+  SOF,10,0x00,    // length = 15
+  0x35,0x8C,      // SNP Set GATT Parameter (0x8C)
+  0x01,           // Generic Access Service
+  0x00,0x00,      // Device Name
+  'G','u','i','s','e','p','p','e',
+  0x77};          // FCS (calculated by AP_SendMessageResponse)
 uint8_t NPI_SetAdvertisementData[] = {   
   SOF,31,0x00,    // length = 31
   0x55,0x43,      // SNP Set Advertisement Data
@@ -185,7 +193,22 @@ uint8_t NPI_SetAdvertisementData[] = {
 
 uint8_t NPI_SetAdvertisementDataJacki[] = {
 // students need to write this as part of Lab 19
-  };         
+  SOF,19,0x00,    // length = 24
+  0x55,0x43,      // SNP Set Advertisement Data
+  0x00,           // Scan Response Data
+  12,0x09,        // length, type=LOCAL_NAME_COMPLETE
+  'G','i','u','s','e','p','p','e',
+
+// connection interval range
+  0x05,           // length of this data
+  0x12,           // GAP_ADTYPE_SLAVE_CONN_INTERVAL_RANGE
+  0x50,0x00,      // DEFAULT_DESIRED_MIN_CONN_INTERVAL
+  0x20,0x03,      // DEFAULT_DESIRED_MAX_CONN_INTERVAL
+// Tx power level
+  0x02,           // length of this data
+  0x0A,           // GAP_ADTYPE_POWER_LEVEL
+  0x00,           // 0dBm
+  0x77};          // FCS (calculated by AP_SendMessageResponse)
 
 const uint8_t NPI_StartAdvertisement[] = {   
   SOF,14,0x00,    // length = 14
@@ -319,13 +342,13 @@ uint32_t AP_GetSize(uint8_t *pt){
 // For debugging, sends message to UART0
 // Inputs:  pointer to message 
 // Outputs: none
-void AP_EchoSendMessage(uint8_t *sendMsg){ int i;uint32_t fcs;
+void AP_EchoSendMessage(uint8_t *sendMsg){ uint32_t fcs;
   uint32_t size=AP_GetSize(sendMsg);
   fcs = 0;
-  for(i=1;i<size+5;i++)fcs = fcs^sendMsg[i];
+  for(u=1;u<size+5;u++)fcs = fcs^sendMsg[u];
   OutString("\n\rLP->SNP ");
-  for(i=0; i<=(4+size); i++){ 
-    OutUHex2(sendMsg[i]); OutChar(',');
+  for(u=0; u<=(4+size); u++){
+    OutUHex2(sendMsg[u]); OutChar(',');
   }
   OutUHex2(fcs); //  FCS, calculated and not in messsage
 }
@@ -333,14 +356,14 @@ void AP_EchoSendMessage(uint8_t *sendMsg){ int i;uint32_t fcs;
 // for debugging, sends RecvBuf from SNP to UART0
 // Inputs:  result APOK or APFAIL
 // Outputs: none
-void AP_EchoReceived(int response){ uint32_t size; int i;
+void AP_EchoReceived(int response){ uint32_t size;
   if(response==APOK){
     OutString("\n\rSNP->LP ");
     size = AP_GetSize(RecvBuf);
-    for(i=0; i<=(4+size); i++){ 
-      OutUHex2(RecvBuf[i]); OutChar(',');
+    for(u=0; u<=(4+size); u++){
+      OutUHex2(RecvBuf[u]); OutChar(',');
     }
-    OutUHex2(RecvBuf[i]); // FCS
+    OutUHex2(RecvBuf[u]); // FCS
   }else{
     OutString("\n\rfrom SNP fail");
   }
@@ -378,7 +401,7 @@ int AP_SendMessage(uint8_t *pt){
   data=*pt; UART1_OutChar(data); fcs=fcs^data; pt++;   // MSB length
   data=*pt; UART1_OutChar(data); fcs=fcs^data; pt++;   // CMD0
   data=*pt; UART1_OutChar(data); fcs=fcs^data; pt++;   // CMD1
-  for(int i=0;i<size;i++){
+  for(u=0;u<size;u++){
     data=*pt; UART1_OutChar(data); fcs=fcs^data; pt++; // payload
   }
   UART1_OutChar(fcs);                                  // FCS
@@ -445,7 +468,7 @@ int AP_RecvMessage(uint8_t *pt, uint32_t max){
   count = 5;
   size = (msb<<8)+lsb;
 // get payload
-  for(int i=0;i<size;i++){
+  for(u=0;u<size;u++){
     data = UART1_InChar(); 
     fcs = fcs^data; 
     count++;
@@ -741,7 +764,16 @@ int AP_StartAdvertisement(void){volatile int r;
 //         APFAIL if notification not configured, or if SNP failure
 int AP_StartAdvertisementJacki(void){volatile int r=0;
 // students need to write this as part of Lab 19
-
+  OutString("\n\rSet Device name");
+  r =AP_SendMessageResponse((uint8_t*)NPI_GATTSetDeviceNameJacki,RecvBuf,RECVSIZE);
+  OutString("\n\rSetAdvertisement1");
+  r =AP_SendMessageResponse((uint8_t*)NPI_SetAdvertisement1,RecvBuf,RECVSIZE);
+//  OutString("\n\rSetAdvertisementSAP");
+//  r =AP_SendMessageResponse((uint8_t*)NPI_SetAdvertisementSAP,RecvBuf,RECVSIZE);
+  OutString("\n\rSetAdvertisement Data");
+  r =AP_SendMessageResponse((uint8_t*)NPI_SetAdvertisementDataJacki,RecvBuf,RECVSIZE);
+  OutString("\n\rStartAdvertisement");
+  r =AP_SendMessageResponse((uint8_t*)NPI_StartAdvertisement,RecvBuf,RECVSIZE);
   return r;
 }
 //*************AP_GetStatus**************
@@ -846,3 +878,57 @@ void AP_BackgroundProcess(void){
   }
 }
 
+void OutValue(char *label,uint32_t value){
+  UART0_OutString(label);
+  UART0_OutUHex(value);
+}
+
+void Dummy(void) {
+
+}
+
+extern int32_t turn;
+void WriteGo(void) {
+    if(Go)
+    {
+        turn = 0;
+        Motor_Forward(3000,3000);
+    }
+    else
+    {
+        Motor_Stop();
+    }
+}
+
+void BLE_Init(void){volatile int r;
+  EnableInterrupts();
+  UART0_OutString("\n\rJacki test project - MSP432-CC2650\n\r");
+  r = AP_Init();
+  AP_GetStatus();  // optional
+  AP_GetVersion(); // optional
+  AP_AddService(0xFFF0);
+  //------------------------
+  Go = 1;  // read/write parameter
+  AP_AddCharacteristic(0xFFF1,1,&Go,0x03,0x0A,"Go",&Dummy,&WriteGo);
+
+  //------------------------
+  lDist = getLeftDistance();
+  AP_AddNotifyCharacteristic(0xFFF2,4,&lDist,"Left Dist",&Dummy);
+
+  //------------------------
+  rDist = getRightDistance();
+  AP_AddNotifyCharacteristic(0xFFF3,4,&rDist,"Right Dist",&Dummy);
+
+  //------------------------
+  fDist = getFrontDistance();
+  AP_AddCharacteristic(0xFFF4,4,&fDist,0x01,0x02,"Front Dist",&Dummy,0);
+
+  AP_AddNotifyCharacteristic(0xFFF6,4,&Xprime0,"Right Speed (RPM)",&Dummy);
+
+  AP_AddNotifyCharacteristic(0xFFF5,4,&Xprime1,"Left Speed (RPM)",&Dummy);
+
+  AP_RegisterService();
+  AP_StartAdvertisementJacki();
+  AP_GetStatus(); // optional
+
+}
